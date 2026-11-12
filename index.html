@@ -80,7 +80,8 @@ async function runAutoScan(){
 }
 $('ocrBtn').onclick=runAutoScan;
 async function api(path){
- const target=WORKER_API+'/'+String(path||'').replace(/^\\/+/, '');
+ const suffix=String(path||'');
+ const target=WORKER_API+(suffix.startsWith('/')?suffix:'/'+suffix);
  let lastError;
  for(let attempt=0;attempt<3;attempt++){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
