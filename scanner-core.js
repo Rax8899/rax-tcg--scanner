@@ -1,7 +1,7 @@
 /* RAX Scanner core: normalization, candidate ranking and resilient API requests. */
 (function(root){
   "use strict";
-  function normNumber(v){const m=String(v??"").match(/(\\d+)\\s*\\/\\s*(\\d+)/);return m?{number:String(parseInt(m[1],10)),total:String(parseInt(m[2],10))}:null;}
+  function normNumber(v){const m=String(v??"").match(/(\d+)\s*\/\s*(\d+)/);return m?{number:String(parseInt(m[1],10)),total:String(parseInt(m[2],10))}:null;}
   function sameNum(a,b){return String(parseInt(String(a??""),10))===String(parseInt(String(b??""),10));}
   function scoreCard(c,q){
     let score=0; const n=normNumber(q.number), name=String(q.name||"").trim().toLowerCase();
