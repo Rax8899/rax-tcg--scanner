@@ -33,7 +33,7 @@
     for(let attempt=0;attempt<=maxRetries;attempt++){
       const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),timeout);
       try{
-        const res=await fetch(url,{headers:{"X-API-Key":apiKey,"Accept":"application/json"},signal:controller.signal,cache:"no-store"});
+        const res=await fetch(url,{headers:{"X-API-Key":apiKey,"Accept":"application/json"},mode:"cors",credentials:"omit",signal:controller.signal,cache:"no-store"});
         const raw=await res.text();let data=null;try{data=raw?JSON.parse(raw):{};}catch(_){throw new Error("API 返回了无法解析的数据，请稍后重试。");}
         if(!res.ok){
           const err=new Error(errorMessage(res.status,data));err.status=res.status;err.payload=data;
@@ -46,6 +46,7 @@
       }catch(e){
         last=e;
         if(e.name==="AbortError")last=new Error("请求超时（"+Math.round(timeout/1000)+" 秒）。请检查网络后重试。");
+        else if(e instanceof TypeError || /load failed|failed to fetch|networkerror/i.test(String(e.message||"")))last=new Error("浏览器无法读取 PkmnPrices API 响应。可能是 Safari 网络连接、DNS 或跨域（CORS）限制；这不是卡片未匹配。请使用设置里的「测试 API 连接」查看具体结果。");
         const retryable=e.name==="AbortError"||!e.status;
         if(!retryable||attempt>=maxRetries)throw last;
         await new Promise(r=>setTimeout(r,500*Math.pow(2,attempt)));
