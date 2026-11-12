@@ -47,7 +47,7 @@ let stream=null, selected=null, currentPhoto=null;
 const STORE='rax_pokemon_scanner_v1';
 function load(){try{return JSON.parse(localStorage.getItem(STORE)||'{"holdings":[]}')}catch{return {holdings:[]}}}
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
-const WORKER_API='https://rax-tcg--scanner.srachel0101.workers.dev';
+const WORKER_API='https://rax-tcg-scanner.srachel0101.workers.dev';
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));['scan','collection','settings'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='collection')renderHoldings()});
 $('startCam').onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});$('video').srcObject=stream;$('video').classList.remove('hidden');$('previewWrap').classList.add('hidden');$('capture').disabled=false;$('camStatus').textContent='相机已开启。把卡片正面完整放入画面。'}catch(e){$('camStatus').textContent='无法开启相机：'+e.message+'。请确认 HTTPS、浏览器权限，或改用上传照片。'}};
