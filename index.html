@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#111827">
-<title>RAX Pokémon TCG Scanner</title>
+<title>RAXTCG — Pokémon Card Scanner & Market Tracker</title>
 <style>
 :root{--bg:#0b1020;--panel:#151d30;--line:#29344b;--txt:#f5f7fb;--muted:#aab5c8;--gold:#f4c95d;--green:#69d6a3;--red:#ff8585}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#111a30,#080c17 65%);color:var(--txt);font:15px system-ui,-apple-system,sans-serif}
@@ -13,7 +13,7 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 </style>
 </head>
 <body><main>
-<header class="brand"><div class="logo">R</div><div><h1>RAX Pokémon TCG Scanner</h1><div class="sub">SCAN · IDENTIFY · MARKET VALUE · COLLECTION</div></div></header>
+<header class="brand"><div class="logo">R</div><div><h1>RAXTCG</h1><div class="sub">SCAN · IDENTIFY · MARKET VALUE · COLLECTION</div></div></header>
 <div class="notice">价格定位：市场参考估值，不是保证成交价。英文卡数据优先；日文卡可能没有免费价格覆盖。请核对卡号、版本、语言、品相和价格日期。</div>
 <div class="tabs"><button class="tab active" data-tab="scan">📷 扫描</button><button class="tab" data-tab="collection">收藏账本</button><button class="tab" data-tab="settings">设置</button></div>
 <section id="scan">
@@ -33,11 +33,11 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 </section>
 <section id="collection" class="hidden"><div class="panel"><h2>收藏账本</h2><div class="grid"><div class="metric"><span class="small">收藏数量</span><strong id="totalQty">0</strong></div><div class="metric"><span class="small">买入总成本 (RM)</span><strong id="totalCost">0.00</strong></div></div><div id="holdings" style="margin-top:12px"></div><button id="exportBtn">导出 CSV</button><button id="wipeBtn">清空本机账本</button></div></section>
 <section id="settings" class="hidden"><div class="panel"><h2>数据与偏好设置</h2>
-<div class="notice">API 连接方式：本 Scanner 通过 Cloudflare Worker 安全连接 PkmnPrices。API Key 保存在服务器端，不需要在这台设备输入或保存。</div><button id="testApi" class="primary">测试安全 API 连接</button><div id="apiStatus" class="small" aria-live="polite"></div><p class="small">市场数据覆盖范围、币种及报价来源取决于 PkmnPrices 账户方案；Cardmarket EUR 等数据不保证所有账户都可用。</p>
+<div class="notice">API 连接方式：本 Scanner 通过 RAXTCG API 安全连接 PkmnPrices。API Key 保存在服务器端，不需要在这台设备输入或保存。</div><button id="testApi" class="primary">测试安全 API 连接</button><div id="apiStatus" class="small" aria-live="polite"></div><p class="small">市场数据覆盖范围、币种及报价来源取决于 PkmnPrices 账户方案；Cardmarket EUR 等数据不保证所有账户都可用。</p>
 <label>USD → MYR 汇率（可手动调整）</label><input id="fx" type="number" min="0.1" step="0.001" value="4.25"><button id="refreshFx">尝试更新汇率</button><div id="fxStatus" class="small"></div>
 <label>默认卡片品相</label><select id="condition"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select>
 <p class="notice">本版本不上传你的照片。OCR 在浏览器内运行；扫描结果需你确认。相机权限要求 HTTPS 网站或 localhost，因此建议部署到 GitHub Pages 后使用。收藏账本保存在当前设备浏览器，不会自动同步到其他设备。</p></div></section>
-<footer>RAX Scanner · Independent collector tool, not affiliated with Pokémon, Nintendo, TCGplayer or Cardmarket. Prices are sourced from PkmnPrices API where available; source timestamps are shown per quote. OCR uses Tesseract.js from its public CDN.</footer>
+<footer>RAXTCG · Independent collector tool, not affiliated with Pokémon, Nintendo, TCGplayer or Cardmarket. Prices are sourced from PkmnPrices API where available; source timestamps are shown per quote. OCR uses Tesseract.js from its public CDN.</footer>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="./scanner-core.js?v=3f3e228"></script>
@@ -47,7 +47,7 @@ let stream=null, selected=null, currentPhoto=null;
 const STORE='rax_pokemon_scanner_v1';
 function load(){try{return JSON.parse(localStorage.getItem(STORE)||'{"holdings":[]}')}catch{return {holdings:[]}}}
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
-const WORKER_API='https://rax-tcg-scanner.srachel0101.workers.dev';
+const API_BASE='/api';
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));['scan','collection','settings'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='collection')renderHoldings()});
 $('startCam').onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});$('video').srcObject=stream;$('video').classList.remove('hidden');$('previewWrap').classList.add('hidden');$('capture').disabled=false;$('camStatus').textContent='相机已开启。把卡片正面完整放入画面。'}catch(e){$('camStatus').textContent='无法开启相机：'+e.message+'。请确认 HTTPS、浏览器权限，或改用上传照片。'}};
@@ -81,18 +81,18 @@ async function runAutoScan(){
 $('ocrBtn').onclick=runAutoScan;
 async function api(path){
  const suffix=String(path||'');
- const target=WORKER_API+(suffix.startsWith('/')?suffix:'/'+suffix);
+ const target=API_BASE+(suffix.startsWith('/')?suffix:'/'+suffix);
  let lastError;
  for(let attempt=0;attempt<3;attempt++){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
   try{
    const response=await fetch(target,{method:'GET',headers:{'Accept':'application/json'},mode:'cors',credentials:'omit',cache:'no-store',signal:controller.signal});
    const raw=await response.text();let data;
-   try{data=raw?JSON.parse(raw):{};}catch(_){throw new Error('Cloudflare Worker 返回了无法解析的数据。');}
+   try{data=raw?JSON.parse(raw):{};}catch(_){throw new Error('RAXTCG API 返回了无法解析的数据。');}
    if(!response.ok)throw new Error(RaxCore.errorMessage(response.status,data));
    return data;
   }catch(error){
-   lastError=error.name==='AbortError'?new Error('Cloudflare Worker 请求超时，请稍后重试。'):error;
+   lastError=error.name==='AbortError'?new Error('RAXTCG API 请求超时，请稍后重试。'):error;
    const retryable=error.name==='AbortError'||error instanceof TypeError||/network|fetch|load failed/i.test(String(error.message||''));
    if(!retryable||attempt===2)throw lastError;
    await new Promise(resolve=>setTimeout(resolve,500*Math.pow(2,attempt)));
@@ -160,9 +160,9 @@ window.getPrice=async id=>{
 window.addHolding=(id,name,usd,variant)=>{let cost=prompt('输入你的买入成本（RM）：','');if(cost===null)return;let qty=prompt('数量：','1');if(qty===null)return;let s=load();s.holdings.push({id,name,usd,variant,cost:Number(cost)||0,qty:Math.max(1,Number(qty)||1),date:new Date().toISOString().slice(0,10)});save(s);alert('已加入本机收藏账本。')};
 function renderHoldings(){let h=load().holdings,qty=h.reduce((a,x)=>a+x.qty,0),cost=h.reduce((a,x)=>a+x.cost*x.qty,0);$('totalQty').textContent=qty;$('totalCost').textContent=cost.toFixed(2);$('holdings').innerHTML=h.length?h.map((x,i)=>`<div class="listitem"><div><b>${esc(x.name)}</b><div class="small">${esc(x.variant)} · ${x.date} · ${x.qty} 张</div><div class="small">买入 RM ${(x.cost*x.qty).toFixed(2)}</div></div><button onclick="removeHolding(${i})">删除</button></div>`).join(''):'<p class="muted">还没有收藏记录。</p>'}
 window.removeHolding=i=>{let s=load();s.holdings.splice(i,1);save(s);renderHoldings()};
-$('exportBtn').onclick=()=>{let h=load().holdings,rows=[['Name','Card ID','Variant','Quantity','Buy cost RM each','Date'],...h.map(x=>[x.name,x.id,x.variant,x.qty,x.cost,x.date])];let csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='RAX-Pokemon-Collection.csv';a.click()};
+$('exportBtn').onclick=()=>{let h=load().holdings,rows=[['Name','Card ID','Variant','Quantity','Buy cost RM each','Date'],...h.map(x=>[x.name,x.id,x.variant,x.qty,x.cost,x.date])];let csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='RAXTCG-Collection.csv';a.click()};
 $('wipeBtn').onclick=()=>{if(confirm('确定清空本机收藏账本？此操作无法恢复。')){save({holdings:[]});renderHoldings()}};
-$('testApi').onclick=async()=>{const b=$('testApi'),s=$('apiStatus');b.disabled=true;s.textContent='正在测试 Safari → Cloudflare Worker → PkmnPrices 连接…';try{const d=await api('/cards?name=Cresselia&per_page=1');const a=readCardList(d);if(!a.length)throw Error('Worker 已响应，但测试目录没有返回卡片记录。');s.innerHTML='<span class="success">安全 API 连接成功！Cloudflare Worker 已返回 '+a.length+' 条 Cresselia 测试记录。可以测试 Cresselia 074/128。</span>';}catch(e){s.innerHTML='<span class="error">API 连接测试失败：'+esc(e.message)+'</span>';}finally{b.disabled=false;}};
+$('testApi').onclick=async()=>{const b=$('testApi'),s=$('apiStatus');b.disabled=true;s.textContent='正在测试 RAXTCG → Secure API → PkmnPrices 连接…';try{const d=await api('/cards?name=Cresselia&per_page=1');const a=readCardList(d);if(!a.length)throw Error('Worker 已响应，但测试目录没有返回卡片记录。');s.innerHTML='<span class="success">安全 API 连接成功！RAXTCG 已返回 '+a.length+' 条 Cresselia 测试记录。可以测试 Cresselia 074/128。</span>';}catch(e){s.innerHTML='<span class="error">API 连接测试失败：'+esc(e.message)+'</span>';}finally{b.disabled=false;}};
 $('fx').value=localStorage.getItem('rax_fx')||'4.25';$('fxStatus').textContent=localStorage.getItem('rax_fx_timestamp')?'上次汇率更新时间：'+localStorage.getItem('rax_fx_timestamp'):'尚未获取实时汇率；当前使用默认参考值 4.25。';
 $('fx').onchange=()=>localStorage.setItem('rax_fx',$('fx').value);
 $('refreshFx').onclick=async()=>{const b=$('refreshFx');b.disabled=true;$('fxStatus').textContent='正在获取汇率…';try{const r=await fetch('https://open.er-api.com/v6/latest/USD',{cache:'no-store'});if(!r.ok)throw Error('汇率服务 HTTP '+r.status);const d=await r.json();if(d.result!=='success'||!Number.isFinite(Number(d.rates&&d.rates.MYR)))throw Error('汇率服务未返回有效 MYR 数据');$('fx').value=Number(d.rates.MYR).toFixed(4);localStorage.setItem('rax_fx',$('fx').value);const stamp=d.time_last_update_utc||new Date().toISOString();localStorage.setItem('rax_fx_timestamp',stamp);if(Number.isFinite(Number(d.rates.EUR))&&Number(d.rates.EUR)>0)localStorage.setItem('rax_eur_myr',(Number(d.rates.MYR)/Number(d.rates.EUR)).toFixed(6));$('fxStatus').textContent='汇率更新成功：1 USD = '+$('fx').value+' MYR · '+stamp;}catch(e){$('fxStatus').textContent='汇率更新失败：'+e.message+'。继续使用已保存汇率。'}finally{b.disabled=false;}};
