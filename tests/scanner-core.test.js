@@ -31,3 +31,31 @@ test("maps common API failures to actionable messages", () => {
   assert.match(core.errorMessage(429, { error: { code: "credit_limit_exceeded", limit_type: "daily" } }), /今日 API 额度/);
   assert.match(core.errorMessage(503, {}), /暂时异常/);
 });
+
+test("retries transient server failures and succeeds", async () => {
+  const originalFetch = global.fetch;
+  let calls = 0;
+  global.fetch = async () => {
+    calls++;
+    if (calls === 1) return { ok: false, status: 503, headers: { get: () => null }, text: async () => JSON.stringify({ error: { message: "temporary" } }) };
+    return { ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify({ data: [{ id: 1 }] }) };
+  };
+  try {
+    const result = await core.request("https://example.test/cards", "pk_test", { timeout: 1000, retries: 1 });
+    assert.equal(result.data[0].id, 1);
+    assert.equal(calls, 2);
+  } finally { global.fetch = originalFetch; }
+});
+
+test("does not retry an invalid API key", async () => {
+  const originalFetch = global.fetch;
+  let calls = 0;
+  global.fetch = async () => {
+    calls++;
+    return { ok: false, status: 401, headers: { get: () => null }, text: async () => JSON.stringify({ error: { code: "unauthorized" } }) };
+  };
+  try {
+    await assert.rejects(core.request("https://example.test/cards", "bad", { timeout: 1000, retries: 2 }), /API Key/);
+    assert.equal(calls, 1);
+  } finally { global.fetch = originalFetch; }
+});
