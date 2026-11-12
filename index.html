@@ -39,6 +39,7 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <footer>RAX Scanner · Independent collector tool, not affiliated with Pokémon, Nintendo, TCGplayer or Cardmarket. Prices are sourced from PkmnPrices API where available; source timestamps are shown per quote. OCR uses Tesseract.js from its public CDN.</footer>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="./scanner-core.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 let stream=null, selected=null, currentPhoto=null;
@@ -77,40 +78,60 @@ async function runAutoScan(){
  }finally{$('ocrBtn').disabled=false;}
 }
 $('ocrBtn').onclick=runAutoScan;
-async function api(path){if(!key())throw Error('请先到「设置」填写免费 API Key。');const r=await fetch('https://api.pkmnprices.com/v1'+path,{headers:{'X-API-Key':key()}});if(!r.ok){let msg=await r.text();throw Error('API '+r.status+'：'+msg.slice(0,180))}return r.json()}
-$('searchBtn').onclick=searchCards;
+async function api(path){if(!key())throw Error('请先到「设置」填写并保存 PkmnPrices API Key。');return RaxCore.request('https://api.pkmnprices.com/v1'+path,key(),{timeout:12000,retries:2});}
+$('searchBtn').onclick=()=>searchCards(false);
 $('clearBtn').onclick=()=>{$('cardName').value='';$('cardNumber').value='';$('setName').value='';$('results').innerHTML='';selected=null};
+function readCardList(payload){if(Array.isArray(payload))return payload;if(Array.isArray(payload&&payload.data))return payload.data;if(Array.isArray(payload&&payload.cards))return payload.cards;return [];}
 async function searchCards(auto=false){
- let name=$('cardName').value.trim();
- let rawNum=$('cardNumber').value.trim();
- let parts=rawNum.match(/^(\d{1,3})\s*\/\s*(\d{1,3})$/);
- if(!name&&!parts){$('results').innerHTML='<p class="error">请输入卡名，或提供完整卡号（例如 074/128）。</p>';return}
- $('results').innerHTML='<p class="muted">正在查询卡片目录…</p>';
+ const q={name:$('cardName').value.trim(),number:$('cardNumber').value.trim(),set:$('setName').value.trim()};
+ const parsed=RaxCore.normNumber(q.number);
+ if(!q.name&&!parsed){$('results').innerHTML='<p class="error">请输入卡名，或提供完整卡号（例如 074/128）。</p>';return;}
+ $('searchBtn').disabled=true;$('ocrBtn').disabled=true;$('results').innerHTML='<p class="muted">正在查询卡片目录…</p>';
  try{
-  let p=new URLSearchParams({per_page:'30'});
-  if(name)p.set('name',name);
-  if(parts){p.set('number',String(parseInt(parts[1],10)));p.set('total_set_number',String(parseInt(parts[2],10)));}
-  let d=await api('/cards?'+p.toString());
-  let cards=d.data||[];
-  if(name)cards=cards.filter(c=>String(c.name||'').toLowerCase().includes(name.toLowerCase()));
-  if(parts)cards=cards.filter(c=>parseInt(c.number,10)===parseInt(parts[1],10)&&parseInt(c.total_set_number,10)===parseInt(parts[2],10));
-  const setFilter=$('setName').value.trim().toLowerCase();
-  if(setFilter)cards=cards.filter(c=>String(c.set?.name||'').toLowerCase().includes(setFilter));
-  if(!cards.length){$('results').innerHTML='<p>没有找到精确匹配。请检查卡名/编号；系列筛选可以先留空。</p>';return}
-  if(auto && cards.length===1){$('results').innerHTML='<p class="success">已找到唯一匹配，正在自动读取价格…</p>';await getPrice(cards[0].id);return;}
-  if(auto && cards.length>1){
-    const exact=cards.filter(c=>String(c.name||'').toLowerCase()===name.toLowerCase());
-    if(exact.length===1){$('results').innerHTML='<p class="success">卡名和编号匹配成功，正在读取价格…</p>';await getPrice(exact[0].id);return;}
+  const params=new URLSearchParams({per_page:'100'});
+  if(q.name)params.set('name',q.name);
+  if(parsed){params.set('number',parsed.number);params.set('total_set_number',parsed.total);}
+  let cards=[];
+  try{cards=readCardList(await api('/cards?'+params.toString()));}catch(firstError){if(!q.name)throw firstError;}
+  let matched=cards.filter(c=>RaxCore.matches(c,q));
+  if(!matched.length&&q.name){
+   const fallback=new URLSearchParams({name:q.name,per_page:'100'});
+   const more=readCardList(await api('/cards?'+fallback.toString()));
+   const byId=new Map([...cards,...more].map(c=>[String(c.id),c]));cards=[...byId.values()];
+   matched=cards.filter(c=>RaxCore.matches(c,q));
   }
-  $('results').innerHTML='<p class="small">'+(auto?'识别到多个相似版本，请确认正确卡图：':'找到')+' '+cards.length+' 个候选。选择对应版本后查看价格：</p>'+
-  cards.map(c=>`<div class="cardrow"><img src="${esc(c.image_url||'')}" loading="lazy"><div style="flex:1"><b>${esc(c.name)}</b><div class="small">${esc(c.set?.name||'')} · ${esc(c.number||'')}/${esc(c.total_set_number||'?')}</div><div class="small">${esc(c.rarity||'')} · ${esc(c.artist||'')}</div><button class="primary" onclick="getPrice(${Number(c.id)})">确认此卡并查看价格</button></div></div>`).join('');
- }catch(e){$('results').innerHTML='<p class="error">'+esc(e.message)+'</p><p class="small">请确认 API Key 已保存、邮箱已验证，以及免费额度可用。</p>'}
+  if(!matched.length&&parsed&&!q.name){
+   const fallback=new URLSearchParams({number:parsed.number,total_set_number:parsed.total,per_page:'100'});
+   cards=readCardList(await api('/cards?'+fallback.toString()));matched=cards.filter(c=>RaxCore.matches(c,q));
+  }
+  matched.sort((x,y)=>RaxCore.scoreCard(y,q)-RaxCore.scoreCard(x,q));
+  if(!matched.length){$('results').innerHTML='<p class="error">没有找到符合卡名和卡号的卡片。请确认卡号格式、语言或卡片名称；Set 留空是允许的。</p>';return;}
+  if(auto&&matched.length===1){$('results').innerHTML='<p class="success">卡片匹配成功，正在读取价格…</p>';await getPrice(matched[0].id);return;}
+  $('results').innerHTML='<p class="small">'+(auto?'OCR 已识别，请确认正确版本：':'找到')+' '+matched.length+' 个候选。选择对应卡片查看价格：</p>'+
+   matched.slice(0,30).map(c=>'<div class="cardrow"><img src="'+esc(c.image_url||'')+'" loading="lazy" alt="'+esc(c.name||'Pokémon card')+'"><div style="flex:1;min-width:0"><b>'+esc(c.name)+'</b><div class="small">'+esc(c.set&&c.set.name||'Set 未提供')+' · '+esc(c.number||'')+'/'+esc(c.total_set_number||'?')+'</div><div class="small">'+esc(c.rarity||'')+' · '+esc(c.artist||'')+'</div><button class="primary" data-card-id="'+Number(c.id)+'">确认此卡并查看价格</button></div></div>').join('');
+  $('results').querySelectorAll('[data-card-id]').forEach(btn=>btn.onclick=()=>getPrice(Number(btn.dataset.cardId)));
+ }catch(e){$('results').innerHTML='<p class="error">'+esc(e.message)+'</p><p class="small">请检查 API Key、网络、邮箱验证及 API 额度。每日额度耗尽时需等待 UTC 午夜重置。</p>';}
+ finally{$('searchBtn').disabled=false;$('ocrBtn').disabled=false;}
 }
-window.getPrice=async id=>{selected=id;$('results').innerHTML='<p class="muted">正在读取市场价格…</p>';try{let c=await api('/cards/'+id+'?currency=usd');let prices=c.prices||[];let fx=Number($('fx').value)||4.25;let cond=$('condition').value;let rows=prices.filter(p=>p.condition===cond);if(!rows.length)rows=prices;let html=`<div class="cardrow"><img src="${esc(c.image_url)}"><div><b>${esc(c.name)}</b><div class="small">${esc(c.set?.name||'')} · ${esc(c.number||'')} · ${esc(c.rarity||'')}</div><span class="pill">数据源：PkmnPrices</span></div></div>`;
-if(!rows.length)html+='<p class="notice">此卡目前没有可用的价格报价。不要把相似卡价当作这张卡的价格。</p>';
-else html+=rows.map(p=>{let usd=Number(p.market_price),rm=usd*fx;return `<div class="panel"><div class="small">${esc(p.source)} · ${esc(p.variant)} · ${esc(p.condition)}</div><div class="price">RM ${rm.toFixed(2)}</div><b>US$ ${usd.toFixed(2)}</b><div class="small">报价日期：${esc(p.created_at||'未提供')} · 汇率：${fx.toFixed(3)}</div><div class="row"><button onclick="addHolding(${Number(c.id)},'${esc(c.name).replace(/'/g,"\\'")}',${usd},'${esc(p.variant)}')">加入收藏账本</button></div></div>`}).join('');
-html+='<p class="notice">此数值是对应来源、版本和品相的 market_price，不等于马来西亚本地成交价。先确认英文/日文、Holo/Reverse Holo、Promo、版本及卡况。API 返回的日期就是数据日期。</p>';$('results').innerHTML=html}
-catch(e){$('results').innerHTML='<p class="error">'+esc(e.message)+'</p>'}};
+window.getPrice=async id=>{
+ selected=id;$('results').innerHTML='<p class="muted">正在读取市场价格…</p>';
+ try{
+  const c=await api('/cards/'+encodeURIComponent(id)+'?currency=usd');
+  if(!c||!c.id)throw Error('价格接口没有返回有效卡片资料。');
+  const prices=Array.isArray(c.prices)?c.prices:[],condition=$('condition').value;
+  let rows=prices.filter(p=>p.condition===condition);if(!rows.length)rows=prices;
+  const fx=Number($('fx').value),fxStamp=localStorage.getItem('rax_fx_timestamp')||'未记录';
+  let html='<div class="cardrow"><img src="'+esc(c.image_url||'')+'" alt="'+esc(c.name)+'"><div><b>'+esc(c.name)+'</b><div class="small">'+esc(c.set&&c.set.name||'')+' · '+esc(c.number||'')+'/'+esc(c.total_set_number||'?')+' · '+esc(c.rarity||'')+'</div><span class="pill">价格来源：PkmnPrices / TCGplayer</span></div></div>';
+  if(!rows.length)html+='<p class="notice">此卡目前没有可用的 USD 市场报价。不会用其他卡片的价格代替。</p>';
+  else html+=rows.map(p=>{
+   const usd=Number(p.market_price),valid=Number.isFinite(usd),rm=valid&&Number.isFinite(fx)?usd*fx:null,src=String(p.source||'tcgplayer').toLowerCase();
+   return '<div class="panel"><div class="small">来源：'+esc(src==='tcgplayer'?'TCGplayer':src)+' · '+esc(p.variant||'版本未提供')+' · '+esc(p.condition||'品相未提供')+'</div><div class="price">'+(rm===null?'MYR 暂不可用':'RM '+rm.toFixed(2))+'</div><b>'+(valid?'US$ '+usd.toFixed(2):'USD 报价不可用')+'</b><div class="small">价格数据时间：'+esc(p.created_at||'服务商未提供')+'</div><div class="small">USD/MYR 汇率：'+(Number.isFinite(fx)?fx.toFixed(4):'未提供')+' · 汇率更新时间：'+esc(fxStamp)+'</div><button data-add="1">加入收藏账本</button></div>';
+  }).join('');
+  html+='<p class="notice">美元报价来自 PkmnPrices 提供的 TCGplayer 市场数据；MYR 按显示汇率换算，并非马来西亚本地成交价。请核对语言、Holo / Reverse Holo、版本和品相。</p>';
+  $('results').innerHTML=html;
+  $('results').querySelectorAll('[data-add]').forEach((btn,i)=>btn.onclick=()=>{const p=rows[i];window.addHolding(c.id,c.name,Number(p.market_price)||0,p.variant||'');});
+ }catch(e){$('results').innerHTML='<p class="error">'+esc(e.message)+'</p><p class="small">卡片已选中，但价格读取失败。请稍后重试；收藏账本不会被删除。</p>';}
+};
 window.addHolding=(id,name,usd,variant)=>{let cost=prompt('输入你的买入成本（RM）：','');if(cost===null)return;let qty=prompt('数量：','1');if(qty===null)return;let s=load();s.holdings.push({id,name,usd,variant,cost:Number(cost)||0,qty:Math.max(1,Number(qty)||1),date:new Date().toISOString().slice(0,10)});save(s);alert('已加入本机收藏账本。')};
 function renderHoldings(){let h=load().holdings,qty=h.reduce((a,x)=>a+x.qty,0),cost=h.reduce((a,x)=>a+x.cost*x.qty,0);$('totalQty').textContent=qty;$('totalCost').textContent=cost.toFixed(2);$('holdings').innerHTML=h.length?h.map((x,i)=>`<div class="listitem"><div><b>${esc(x.name)}</b><div class="small">${esc(x.variant)} · ${x.date} · ${x.qty} 张</div><div class="small">买入 RM ${(x.cost*x.qty).toFixed(2)}</div></div><button onclick="removeHolding(${i})">删除</button></div>`).join(''):'<p class="muted">还没有收藏记录。</p>'}
 window.removeHolding=i=>{let s=load();s.holdings.splice(i,1);save(s);renderHoldings()};
