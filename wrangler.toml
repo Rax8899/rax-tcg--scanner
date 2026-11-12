@@ -1,0 +1,4 @@
+name = "rax-tcg-scanner-api"
+main = "worker.js"
+compatibility_date = "2026-11-13"
+workers_dev = true
