@@ -22,7 +22,7 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <div class="row"><button id="startCam" class="primary">开启相机</button><button id="capture" disabled>拍照识别</button><button id="stopCam">关闭相机</button></div>
 <div class="small" id="camStatus">建议将整张卡片放入画面，光线充足、避免反光。</div>
 <div class="row"><label style="flex:1">或选择卡片照片<input id="file" type="file" accept="image/*" capture="environment"></label></div>
-<button id="ocrBtn" class="primary" disabled>识别照片文字</button><div id="ocrStatus" class="small"></div>
+<button id="ocrBtn" class="primary" disabled>自动识别并查价</button><div id="ocrStatus" class="small"></div>
 </div>
 <div class="panel"><h2>② 确认卡片资料</h2>
 <label>卡名（可手动修改）</label><input id="cardName" placeholder="例如 Pikachu / Charizard">
@@ -52,15 +52,60 @@ $('startCam').onclick=async()=>{try{stream=await navigator.mediaDevices.getUserM
 $('stopCam').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('video').classList.add('hidden');$('capture').disabled=true};
 $('capture').onclick=()=>{let v=$('video'),c=$('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(blob=>showPhoto(blob),'image/jpeg',.92)};
 $('file').onchange=e=>{if(e.target.files[0])showPhoto(e.target.files[0])};
-function showPhoto(blob){currentPhoto=blob;$('preview').src=URL.createObjectURL(blob);$('previewWrap').classList.remove('hidden');$('ocrBtn').disabled=false;$('ocrStatus').textContent='照片已准备好。点击识别文字。'}
-$('ocrBtn').onclick=async()=>{if(!currentPhoto)return;$('ocrStatus').textContent='正在本机识别文字…首次加载 OCR 可能需要一点时间。';try{const {data}=await Tesseract.recognize(currentPhoto,'eng',{logger:m=>{if(m.status==='recognizing text')$('ocrStatus').textContent='OCR 识别中 '+Math.round((m.progress||0)*100)+'%'}});const t=data.text||'';$('ocrStatus').textContent='识别完成。请检查并修改卡名/卡号，再搜索价格。';const lines=t.split(/\n/).map(x=>x.trim()).filter(Boolean);let num=lines.find(x=>/\b\d{1,3}\s*\/\s*\d{1,3}\b/.test(x));if(num)$('cardNumber').value=(num.match(/\d{1,3}\s*\/\s*\d{1,3}/)||[])[0].replace(/\s/g,'');let cleaned=lines.filter(x=>!/\d{1,3}\s*\/\s*\d{1,3}/.test(x)&&!/^(HP|BASIC|STAGE|TRAINER|ENERGY)\b/i.test(x));let candidate=cleaned.sort((a,b)=>b.length-a.length)[0];if(candidate)$('cardName').value=candidate.slice(0,48)}catch(e){$('ocrStatus').textContent='OCR 暂时无法使用：'+e.message+'. 请手动输入卡名。'}};
+function showPhoto(blob){currentPhoto=blob;$('preview').src=URL.createObjectURL(blob);$('previewWrap').classList.remove('hidden');$('ocrBtn').disabled=false;$('ocrStatus').textContent='照片已准备好。点击「自动识别并查价」。'}
+async function runAutoScan(){
+ if(!currentPhoto)return;
+ $('ocrBtn').disabled=true;
+ $('ocrStatus').textContent='正在识别卡片文字…';
+ try{
+  const {data}=await Tesseract.recognize(currentPhoto,'eng',{logger:m=>{
+   if(m.status==='recognizing text')$('ocrStatus').textContent='OCR 识别中 '+Math.round((m.progress||0)*100)+'%';
+  }});
+  const t=data.text||'';
+  const lines=t.split(/\n/).map(x=>x.trim()).filter(Boolean);
+  const numLine=lines.find(x=>/\b\d{1,3}\s*\/\s*\d{1,3}\b/.test(x));
+  const numberMatch=numLine && numLine.match(/\d{1,3}\s*\/\s*\d{1,3}/);
+  if(numberMatch)$('cardNumber').value=numberMatch[0].replace(/\s/g,'');
+  const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT)\b/i;
+  const candidates=lines.filter(x=>!/\d{1,3}\s*\/\s*\d{1,3}/.test(x)&&!excluded.test(x)&&x.length>=4&&x.length<=40);
+  const nameGuess=candidates.find(x=>/^[A-Z][A-Za-z' -]+$/.test(x)) || candidates.sort((a,b)=>b.length-a.length)[0];
+  if(nameGuess)$('cardName').value=nameGuess.slice(0,48);
+  $('ocrStatus').textContent='文字已提取，正在自动匹配卡片目录与价格…';
+  await searchCards(true);
+ }catch(e){
+  $('ocrStatus').textContent='自动识别未完成：'+e.message+'。你可以修正卡名/卡号后再点搜索。';
+ }finally{$('ocrBtn').disabled=false;}
+}
+$('ocrBtn').onclick=runAutoScan;
 async function api(path){if(!key())throw Error('请先到「设置」填写免费 API Key。');const r=await fetch('https://api.pkmnprices.com/v1'+path,{headers:{'X-API-Key':key()}});if(!r.ok){let msg=await r.text();throw Error('API '+r.status+'：'+msg.slice(0,180))}return r.json()}
 $('searchBtn').onclick=searchCards;
 $('clearBtn').onclick=()=>{$('cardName').value='';$('cardNumber').value='';$('setName').value='';$('results').innerHTML='';selected=null};
-async function searchCards(){let name=$('cardName').value.trim(),num=$('cardNumber').value.trim().split('/')[0],set=$('setName').value.trim();if(!name&&!num){$('results').innerHTML='<p class="error">请输入卡名或卡号。</p>';return}
-$('results').innerHTML='<p class="muted">正在查询卡片目录…</p>';try{let p=new URLSearchParams({per_page:'30'});if(name)p.set('name',name);if(num)p.set('number',num);let d=await api('/cards?'+p.toString());let cards=d.data||[];if(set)cards=cards.filter(c=>(c.set?.name||'').toLowerCase().includes(set.toLowerCase()));if(!cards.length){$('results').innerHTML='<p>没有找到。尝试只输入英文卡名，或移除系列筛选。</p>';return}
-$('results').innerHTML='<p class="small">找到 '+cards.length+' 个候选。请按卡图、系列和编号选择正确版本：</p>'+cards.map(c=>`<div class="cardrow"><img src="${esc(c.image_url||'')}" loading="lazy"><div style="flex:1"><b>${esc(c.name)}</b><div class="small">${esc(c.set?.name||'')} · ${esc(c.number||'')}/${esc(c.total_set_number||'?')}</div><div class="small">${esc(c.rarity||'')} · ${esc(c.artist||'')}</div><button class="primary" onclick="getPrice(${Number(c.id)})">查看价格</button></div></div>`).join('')}
-catch(e){$('results').innerHTML='<p class="error">'+esc(e.message)+'</p><p class="small">检查 API Key 是否已验证、网络是否可用，以及免费额度是否仍有效。</p>'}}
+async function searchCards(auto=false){
+ let name=$('cardName').value.trim();
+ let rawNum=$('cardNumber').value.trim();
+ let parts=rawNum.match(/^(\d{1,3})\s*\/\s*(\d{1,3})$/);
+ if(!name&&!parts){$('results').innerHTML='<p class="error">请输入卡名，或提供完整卡号（例如 074/128）。</p>';return}
+ $('results').innerHTML='<p class="muted">正在查询卡片目录…</p>';
+ try{
+  let p=new URLSearchParams({per_page:'30'});
+  if(name)p.set('name',name);
+  if(parts){p.set('number',String(parseInt(parts[1],10)));p.set('total_set_number',String(parseInt(parts[2],10)));}
+  let d=await api('/cards?'+p.toString());
+  let cards=d.data||[];
+  if(name)cards=cards.filter(c=>String(c.name||'').toLowerCase().includes(name.toLowerCase()));
+  if(parts)cards=cards.filter(c=>parseInt(c.number,10)===parseInt(parts[1],10)&&parseInt(c.total_set_number,10)===parseInt(parts[2],10));
+  const setFilter=$('setName').value.trim().toLowerCase();
+  if(setFilter)cards=cards.filter(c=>String(c.set?.name||'').toLowerCase().includes(setFilter));
+  if(!cards.length){$('results').innerHTML='<p>没有找到精确匹配。请检查卡名/编号；系列筛选可以先留空。</p>';return}
+  if(auto && cards.length===1){$('results').innerHTML='<p class="success">已找到唯一匹配，正在自动读取价格…</p>';await getPrice(cards[0].id);return;}
+  if(auto && cards.length>1){
+    const exact=cards.filter(c=>String(c.name||'').toLowerCase()===name.toLowerCase());
+    if(exact.length===1){$('results').innerHTML='<p class="success">卡名和编号匹配成功，正在读取价格…</p>';await getPrice(exact[0].id);return;}
+  }
+  $('results').innerHTML='<p class="small">'+(auto?'识别到多个相似版本，请确认正确卡图：':'找到')+' '+cards.length+' 个候选。选择对应版本后查看价格：</p>'+
+  cards.map(c=>`<div class="cardrow"><img src="${esc(c.image_url||'')}" loading="lazy"><div style="flex:1"><b>${esc(c.name)}</b><div class="small">${esc(c.set?.name||'')} · ${esc(c.number||'')}/${esc(c.total_set_number||'?')}</div><div class="small">${esc(c.rarity||'')} · ${esc(c.artist||'')}</div><button class="primary" onclick="getPrice(${Number(c.id)})">确认此卡并查看价格</button></div></div>`).join('');
+ }catch(e){$('results').innerHTML='<p class="error">'+esc(e.message)+'</p><p class="small">请确认 API Key 已保存、邮箱已验证，以及免费额度可用。</p>'}
+}
 window.getPrice=async id=>{selected=id;$('results').innerHTML='<p class="muted">正在读取市场价格…</p>';try{let c=await api('/cards/'+id+'?currency=usd');let prices=c.prices||[];let fx=Number($('fx').value)||4.25;let cond=$('condition').value;let rows=prices.filter(p=>p.condition===cond);if(!rows.length)rows=prices;let html=`<div class="cardrow"><img src="${esc(c.image_url)}"><div><b>${esc(c.name)}</b><div class="small">${esc(c.set?.name||'')} · ${esc(c.number||'')} · ${esc(c.rarity||'')}</div><span class="pill">数据源：PkmnPrices</span></div></div>`;
 if(!rows.length)html+='<p class="notice">此卡目前没有可用的价格报价。不要把相似卡价当作这张卡的价格。</p>';
 else html+=rows.map(p=>{let usd=Number(p.market_price),rm=usd*fx;return `<div class="panel"><div class="small">${esc(p.source)} · ${esc(p.variant)} · ${esc(p.condition)}</div><div class="price">RM ${rm.toFixed(2)}</div><b>US$ ${usd.toFixed(2)}</b><div class="small">报价日期：${esc(p.created_at||'未提供')} · 汇率：${fx.toFixed(3)}</div><div class="row"><button onclick="addHolding(${Number(c.id)},'${esc(c.name).replace(/'/g,"\\'")}',${usd},'${esc(p.variant)}')">加入收藏账本</button></div></div>`}).join('');
