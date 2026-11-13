@@ -202,8 +202,8 @@ async function runAutoScan(){
   let parsed=await parseOcr(cardCanvas,0);
   if(!parsed.candidate||!parsed.numberMatch){
    for(const rotation of [90,180,270]){
-    const rotated=document.createElement('canvas');rotated.width=1000;rotated.height=1400;
-    const rctx=rotated.getContext('2d');rctx.translate(500,700);rctx.rotate(rotation*Math.PI/180);rctx.drawImage(cardCanvas,-500,-700,1000,1400);
+    const rotated=document.createElement('canvas');rotated.width=(rotation===90||rotation===270)?1400:1000;rotated.height=(rotation===90||rotation===270)?1000:1400;
+    const rctx=rotated.getContext('2d');rctx.translate(rotated.width/2,rotated.height/2);rctx.rotate(rotation*Math.PI/180);rctx.drawImage(cardCanvas,-cardCanvas.width/2,-cardCanvas.height/2);
     const alternate=await parseOcr(rotated,rotation);
     if(alternate.candidate&&alternate.numberMatch){parsed=alternate;break;}
    }
