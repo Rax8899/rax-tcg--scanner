@@ -89,8 +89,8 @@ function detectCard(){
     pts=[];for(let j=0;j<4;j++)pts.push({x:approx.intPtr(j,0)[0],y:approx.intPtr(j,0)[1]});
    }else if(cv.contourArea(c)>w*h*.035){
     // Fallback: camera perspective and soft edges often prevent a perfect four-point polygon.
-    const rect=cv.minAreaRect(c),box=cv.RotatedRect.points(rect);
-    pts=box.map(p=>({x:p.x,y:p.y}));
+    const rect=cv.minAreaRect(c),box=new cv.Mat();cv.boxPoints(rect,box);
+    pts=[];for(let k=0;k<4;k++)pts.push({x:box.floatAt(k,0),y:box.floatAt(k,1)});box.delete();
    }
    if(pts){
     const ordered=orderQuad(pts),xs=ordered.map(p=>p.x),ys=ordered.map(p=>p.y);
