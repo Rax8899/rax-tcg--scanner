@@ -142,8 +142,8 @@
       if(!Number.isFinite(value)){
         const amount=Number(h&&(h.marketAmount??h.usd));
         const currency=String(h&&h.currency||"USD").toUpperCase();
-        const rate=currency==="MYR"?1:currency==="EUR"?Number(fx&&fx.EUR):Number(fx&&fx.USD);
-        value=Number.isFinite(amount)&&Number.isFinite(rate)&&rate>0?amount*rate:NaN;
+        const rate=currency==="MYR"?1:currency==="EUR"?Number(fx&&fx.EUR):currency==="USD"?Number(fx&&fx.USD):NaN;
+        value=Number.isFinite(amount)&&amount>0&&Number.isFinite(rate)&&rate>0?amount*rate:NaN;
       }
       if(Number.isFinite(value)&&value>=0){marketValue+=value*qty;pricedCostBasis+=cost*qty;valuedQuantity+=qty;}
       else unpricedQuantity+=qty;
