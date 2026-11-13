@@ -14,7 +14,7 @@
     return n&&total?{number:String(parseInt(n[0],10)),total:String(parseInt(total[0],10))}:null;
   }
   function normalizeName(value){
-    return String(value??"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+    return String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
   }
   function sameNum(a,b){
     const left=String(a??"").match(/\d+/),right=String(b??"").match(/\d+/);
