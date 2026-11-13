@@ -81,7 +81,7 @@ async function runAutoScan(){
 $('ocrBtn').onclick=runAutoScan;
 async function api(path){
  const suffix=String(path||'');
- const split=suffix.split('?'),route=(split[0]||'').replace(/^\\/+/,''),query=split[1]||'';
+ const split=suffix.split('?'),rawRoute=split[0]||'',route=rawRoute.startsWith('/')?rawRoute.slice(1):rawRoute,query=split[1]||'';
  const target=WORKER_API+'?path='+encodeURIComponent(route)+(query?'&'+query:'');
  let lastError;
  for(let attempt=0;attempt<3;attempt++){
