@@ -57,19 +57,7 @@ $('stopCam').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stre
 $('capture').onclick=()=>{let v=$('video'),c=$('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(blob=>showPhoto(blob),'image/jpeg',.92)};
 $('file').onchange=e=>{if(e.target.files[0])showPhoto(e.target.files[0])};
 function showPhoto(blob){currentPhoto=blob;$('preview').src=URL.createObjectURL(blob);$('previewWrap').classList.remove('hidden');$('ocrBtn').disabled=false;$('ocrStatus').textContent='照片已准备好，正在自动识别…';runAutoScan();}
-async function photoDataUrl(blob){
- const url=URL.createObjectURL(blob);
- try{
-  const img=new Image();
-  await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('无法读取照片'));img.src=url;});
-  const scale=Math.min(1,1400/Math.max(img.naturalWidth,img.naturalHeight));
-  const canvas=document.createElement('canvas');
-  canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
-  canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
-  canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-  return canvas.toDataURL('image/jpeg',.82);
- }finally{URL.revokeObjectURL(url);}
-}
+
 async function runAutoScan(){
  if(!currentPhoto)return false;
  $('ocrBtn').disabled=true;
