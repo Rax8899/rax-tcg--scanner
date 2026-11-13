@@ -13,11 +13,11 @@ module.exports = async function handler(req, res) {
   if (typeof image !== "string" || !/^data:image\/(jpeg|jpg|png|webp);base64,/.test(image)) {
     return res.status(400).json({ error: { message: "请提供 JPEG、PNG 或 WebP 卡片照片。" } });
   }
-  if (image.length > 10 * 1024 * 1024) {
+  if (image.length > 5 * 1024 * 1024) {
     return res.status(413).json({ error: { message: "照片太大，请降低相机分辨率后重试。" } });
   }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 22000);
+  const timer = setTimeout(() => controller.abort(), 50000);
   try {
     const upstream = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -85,3 +85,5 @@ module.exports = async function handler(req, res) {
     clearTimeout(timer);
   }
 };
+
+module.exports.config = { maxDuration: 60 };
