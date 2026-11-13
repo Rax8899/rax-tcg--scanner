@@ -55,12 +55,24 @@ $('stopCam').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stre
 $('capture').onclick=()=>{let v=$('video'),c=$('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(blob=>showPhoto(blob),'image/jpeg',.92)};
 $('file').onchange=e=>{if(e.target.files[0])showPhoto(e.target.files[0])};
 function showPhoto(blob){currentPhoto=blob;$('preview').src=URL.createObjectURL(blob);$('previewWrap').classList.remove('hidden');$('ocrBtn').disabled=false;$('ocrStatus').textContent='照片已准备好。点击「自动识别并查价」。'}
+async function prepareOcrImage(blob){
+ const bitmap=await createImageBitmap(blob);
+ const scale=Math.min(2,1800/Math.max(bitmap.width,bitmap.height));
+ const canvas=document.createElement('canvas');
+ canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+ const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+ const frame=ctx.getImageData(0,0,canvas.width,canvas.height),d=frame.data;
+ for(let i=0;i<d.length;i+=4){const gray=.299*d[i]+.587*d[i+1]+.114*d[i+2];const enhanced=Math.max(0,Math.min(255,(gray-128)*1.18+128));d[i]=d[i+1]=d[i+2]=enhanced;}
+ ctx.putImageData(frame,0,0);
+ return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('无法处理图片')), 'image/jpeg',.94));
+}
 async function runAutoScan(){
  if(!currentPhoto)return;
  $('ocrBtn').disabled=true;
  $('ocrStatus').textContent='正在识别卡片文字…';
  try{
-  const {data}=await Tesseract.recognize(currentPhoto,'eng',{logger:m=>{
+  const ocrImage=await prepareOcrImage(currentPhoto);
+  const {data}=await Tesseract.recognize(ocrImage,'eng',{logger:m=>{
    if(m.status==='recognizing text')$('ocrStatus').textContent='OCR 识别中 '+Math.round((m.progress||0)*100)+'%';
   }});
   const t=data.text||'';
@@ -154,13 +166,13 @@ window.getPrice=async id=>{
   }).join('');
   html+='<p class="notice">价格按来源分别显示：TCGplayer（USD）及服务商账户可用时的 Cardmarket（EUR）。MYR 为换算参考，不是马来西亚本地成交价。请核对语言、Holo / Reverse Holo、版本和品相。</p>';
   $('results').innerHTML=html;
-  $('results').querySelectorAll('[data-add]').forEach((btn,i)=>btn.onclick=()=>{const p=rows[i];window.addHolding(c.id,c.name,Number(p.market_price)||0,(p.currency||'USD')+' '+(p.variant||'')+' · '+(p.condition||'condition unknown')+' · '+(p.source||'source unknown'));});
+  $('results').querySelectorAll('[data-add]').forEach((btn,i)=>btn.onclick=()=>{const p=rows[i];window.addHolding(c.id,c.name,{amount:p.market_price,currency:p.currency||'USD',variant:p.variant||'',condition:p.condition||'',source:p.source||''});});
  }catch(e){$('results').innerHTML='<p class="error">'+esc(e.message)+'</p><p class="small">卡片已选中，但价格读取失败。请稍后重试；收藏账本不会被删除。</p>';}
 };
-window.addHolding=(id,name,amount,quoteLabel)=>{let cost=prompt('输入你的买入成本（RM）：','');if(cost===null)return;let qty=prompt('数量：','1');if(qty===null)return;const quote=String(quoteLabel||'').split(' ');let s=load();s.holdings.push({id,name,marketPrice:Number(amount)||0,currency:quote[0]||'USD',variant:quote.slice(1).join(' '),cost:Number(cost)||0,qty:Math.max(1,Number(qty)||1),date:new Date().toISOString().slice(0,10)});save(s);alert('已加入本机收藏账本。报价已作为加入当日的参考快照保存，不代表实时价格。')};
-function renderHoldings(){let h=load().holdings,qty=h.reduce((a,x)=>a+x.qty,0),cost=h.reduce((a,x)=>a+x.cost*x.qty,0);$('totalQty').textContent=qty;$('totalCost').textContent=cost.toFixed(2);$('holdings').innerHTML=h.length?h.map((x,i)=>{const rate=x.currency==='EUR'?Number(localStorage.getItem('rax_eur_myr')):Number($('fx').value);const value=Number.isFinite(rate)?x.marketPrice*rate*x.qty:null;const pnl=value===null?null:value-x.cost*x.qty;return `<div class="listitem"><div><b>${esc(x.name)}</b><div class="small">${esc(x.variant)} · ${x.date} · ${x.qty} 张</div><div class="small">买入成本 RM ${(x.cost*x.qty).toFixed(2)} · 加入时市场报价 ${esc(x.currency||'')} ${Number(x.marketPrice||0).toFixed(2)}</div><div class="small">加入时估值 ${value===null?'暂不可换算':'RM '+value.toFixed(2)} · 参考盈亏 ${pnl===null?'—':(pnl>=0?'+':'')+'RM '+pnl.toFixed(2)}</div></div><button onclick="removeHolding(${i})">删除</button></div>`}).join(''):'<p class="muted">还没有收藏记录。</p>'}
+window.addHolding=(id,name,quote)=>{let cost=prompt('输入你的买入成本（RM）：','');if(cost===null)return;let qty=prompt('数量：','1');if(qty===null)return;const currency=String(quote.currency||'USD').toUpperCase(),amount=Number(quote.amount)||0,rate=currency==='EUR'?Number(localStorage.getItem('rax_eur_myr')):Number($('fx').value);const snapshotRM=Number.isFinite(rate)?amount*rate:null;let s=load();s.holdings.push({id,name,marketPrice:amount,currency,variant:quote.variant||'',condition:quote.condition||'',source:quote.source||'',fxRate:Number.isFinite(rate)?rate:null,snapshotRM,cost:Number(cost)||0,qty:Math.max(1,Number(qty)||1),date:new Date().toISOString().slice(0,10)});save(s);alert('已加入本机收藏账本。报价与汇率已保存为当日快照，不代表实时价格。')};
+function renderHoldings(){let h=load().holdings,qty=h.reduce((a,x)=>a+x.qty,0),cost=h.reduce((a,x)=>a+x.cost*x.qty,0);$('totalQty').textContent=qty;$('totalCost').textContent=cost.toFixed(2);$('holdings').innerHTML=h.length?h.map((x,i)=>{const value=Number.isFinite(Number(x.snapshotRM))?Number(x.snapshotRM)*x.qty:null;const pnl=value===null?null:value-x.cost*x.qty;return `<div class="listitem"><div><b>${esc(x.name)}</b><div class="small">${esc(x.variant)} · ${esc(x.condition||'品相未记录')} · ${esc(x.source||'来源未记录')} · ${x.date} · ${x.qty} 张</div><div class="small">买入成本 RM ${(x.cost*x.qty).toFixed(2)} · 加入时市场报价 ${esc(x.currency||'')} ${Number(x.marketPrice||0).toFixed(2)}</div><div class="small">加入时估值 ${value===null?'暂不可换算':'RM '+value.toFixed(2)} · 参考盈亏 ${pnl===null?'—':(pnl>=0?'+':'')+'RM '+pnl.toFixed(2)} · 汇率 ${Number.isFinite(Number(x.fxRate))?Number(x.fxRate).toFixed(4):'未记录'}</div></div><button onclick="removeHolding(${i})">删除</button></div>`}).join(''):'<p class="muted">还没有收藏记录。</p>'}
 window.removeHolding=i=>{let s=load();s.holdings.splice(i,1);save(s);renderHoldings()};
-$('exportBtn').onclick=()=>{let h=load().holdings,rows=[['Name','Card ID','Variant','Quantity','Buy cost RM each','Date'],...h.map(x=>[x.name,x.id,x.variant,x.qty,x.cost,x.date])];let csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='RAXTCG-Collection.csv';a.click()};
+$('exportBtn').onclick=()=>{let h=load().holdings,rows=[['Name','Card ID','Variant','Condition','Source','Quote currency','Quote amount at add','FX rate at add','Snapshot value RM per card','Quantity','Buy cost RM each','Date'],...h.map(x=>[x.name,x.id,x.variant,x.condition||'',x.source||'',x.currency||'',x.marketPrice,x.fxRate??'',x.snapshotRM??'',x.qty,x.cost,x.date])];let csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='RAXTCG-Collection.csv';a.click()};
 $('wipeBtn').onclick=()=>{if(confirm('确定清空本机收藏账本？此操作无法恢复。')){save({holdings:[]});renderHoldings()}};
 $('testApi').onclick=async()=>{const b=$('testApi'),s=$('apiStatus');b.disabled=true;s.textContent='正在测试 RAXTCG → Secure API → PkmnPrices 连接…';try{const d=await api('/cards?name=Cresselia&per_page=1');const a=readCardList(d);if(!a.length)throw Error('Worker 已响应，但测试目录没有返回卡片记录。');s.innerHTML='<span class="success">安全 API 连接成功！RAXTCG 已返回 '+a.length+' 条 Cresselia 测试记录。可以测试 Cresselia 074/128。</span>';}catch(e){s.innerHTML='<span class="error">API 连接测试失败：'+esc(e.message)+'</span>';}finally{b.disabled=false;}};
 $('fx').value=localStorage.getItem('rax_fx')||'4.25';$('fxStatus').textContent=localStorage.getItem('rax_fx_timestamp')?'上次汇率更新时间：'+localStorage.getItem('rax_fx_timestamp'):'尚未获取实时汇率；当前使用默认参考值 4.25。';
