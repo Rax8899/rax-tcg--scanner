@@ -61,6 +61,7 @@ function showPhoto(blob){currentPhoto=blob;$('preview').src=URL.createObjectURL(
 async function runAutoScan(){
  if(!currentPhoto)return false;
  $('ocrBtn').disabled=true;
+ $('cardName').value='';$('cardNumber').value='';$('setName').value='';$('results').innerHTML='';
  $('ocrStatus').textContent='免费本机 OCR：正在整幅画面自动定位卡片…';
  try{
   const url=URL.createObjectURL(currentPhoto);let img;
