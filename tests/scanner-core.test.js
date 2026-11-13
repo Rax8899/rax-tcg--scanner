@@ -118,3 +118,15 @@ test("converts USD and EUR using explicitly supplied rates only", () => {
   assert.equal(summary.valuedQuantity, 2);
   assert.equal(summary.unpricedQuantity, 1);
 });
+
+
+test("treats null and zero legacy market values as unpriced", () => {
+  const summary = core.portfolioSummary([
+    { qty: 1, cost: 12, marketMyr: null, usd: 0 },
+    { qty: 1, cost: 15, marketMyr: 0 }
+  ], { USD: 4.5 });
+  assert.equal(summary.marketValue, 0);
+  assert.equal(summary.valuedQuantity, 0);
+  assert.equal(summary.unpricedQuantity, 2);
+  assert.equal(summary.pricedCostBasis, 0);
+});
