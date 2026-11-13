@@ -203,7 +203,7 @@ async function runAutoScan(){
  try{
   const card=await identifyCardWithVision(currentPhoto);
   const name=String(card.name||'').trim(),number=String(card.number||'').trim(),set=String(card.set_name||'').trim();
-  if(!name&&!number)throw Error('暂时无法确认卡片身份，请让卡片更靠近镜头并保持清晰。');
+  if(card.is_pokemon_card!==true||Number(card.confidence)<0.45||(!name&&!number))throw Error('AI 暂时无法可靠确认这是一张 Pokémon 卡，请让卡片更靠近镜头并保持清晰。');
   $('cardName').value=name;$('cardNumber').value=number;$('setName').value=set;
   $('ocrStatus').textContent='AI 已识别 '+(name||'卡片')+(number?' · '+number:'')+(set?' · '+set:'')+'，正在查询市场资料…';
   await searchCards(true);
