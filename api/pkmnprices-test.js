@@ -59,7 +59,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({
       ok: true, stage: "complete",
-      search: { resultCount: cards.length, exactMatchCount: matches.length, exactMatches: matches.slice(0, 10).map(c => ({
+      search: { resultCount: cards.length, sampleRecords: cards.slice(0, 5).map(c => ({ id: c.id, name: c.name, number: c.number, total_set_number: c.total_set_number, set: c.set })), exactMatchCount: matches.length, exactMatches: matches.slice(0, 10).map(c => ({
         id: c.id, name: c.name, number: c.number, total_set_number: c.total_set_number,
         set: c.set && c.set.name, image_url: c.image_url
       })) },
