@@ -63,8 +63,8 @@ A local-first Pokémon TCG collector workspace inspired by the public feature se
 **M2 — Scanner reliability**
 - [ ] Remove false-success states from camera/recognition
 - [ ] Make OpenCV loading deterministic and expose a diagnostic self-test
-- [ ] Card boundary detection and perspective correction
-- [ ] OCR candidate confidence and exact catalog verification
+- [x] Card boundary detection and perspective correction
+- [x] Exact catalog verification before price lookup
 - [ ] Validate on real iPhone/iPad photos including glare, tilt, foil and different lighting
 - [ ] Never auto-add or show a price when identity is ambiguous
 
@@ -73,7 +73,8 @@ A local-first Pokémon TCG collector workspace inspired by the public feature se
 - [x] Cresselia 074/128 search and detail regression verified live
 - [ ] Add explicit price-source/condition/variant selection
 - [ ] Distinguish raw, graded and sealed product records
-- [ ] Persist last-known quote with source timestamp; clearly label stale values
+- [x] Persist price source and original quote timestamp with each holding
+- [ ] Persist historical quote snapshots; clearly label stale values
 - [ ] Handle unavailable history/marketplace coverage without guessing
 
 **M4 — Collector UX**
