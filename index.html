@@ -93,9 +93,18 @@ function detectCard(){
     const rect=cv.minAreaRect(contour),rw=Math.max(rect.size.width,rect.size.height),rh=Math.max(1,Math.min(rect.size.width,rect.size.height));
     const ratio=rw/rh,rectArea=rw*rh,rectangularity=area/Math.max(1,rectArea);
     if(ratio>1.22&&ratio<1.92&&rectArea>w*h*.025&&rectArea<w*h*.82&&rectangularity>.48){
-     const box=new cv.Mat();cv.boxPoints(rect,box);const pts=[];
-     for(let k=0;k<4;k++)pts.push({x:box.floatAt(k,0),y:box.floatAt(k,1)});
-     box.delete();
+     // Build the rotated rectangle corners directly. OpenCV.js boxPoints bindings
+     // vary between builds; avoiding that binding prevents the live loop crashing.
+     const angle=Number(rect.angle)*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
+     const ux=cos*rect.size.width/2,uy=sin*rect.size.width/2;
+     const vx=-sin*rect.size.height/2,vy=cos*rect.size.height/2;
+     const cx0=rect.center.x,cy0=rect.center.y;
+     const pts=[
+      {x:cx0-ux-vx,y:cy0-uy-vy},
+      {x:cx0+ux-vx,y:cy0+uy-vy},
+      {x:cx0+ux+vx,y:cy0+uy+vy},
+      {x:cx0-ux+vx,y:cy0-uy+vy}
+     ];
      const q=orderQuad(pts),cx=q.reduce((s,p)=>s+p.x,0)/4,cy=q.reduce((s,p)=>s+p.y,0)/4;
      if(cx>w*.025&&cx<w*.975&&cy>h*.025&&cy<h*.975){
       valid++;const size=rectArea/(w*h),score=size*100+rectangularity*8-Math.abs(ratio-1.405)*3;
@@ -109,7 +118,7 @@ function detectCard(){
   return best;
  }finally{mat.delete();gray.delete();blur.delete();edges.delete();closed.delete();contours.delete();hierarchy.delete();if(kernel)kernel.delete();}
 }
-function startCardDetection(){cancelAnimationFrame(scanLoopId);stableCardFrames=0;const loop=now=>{if(!stream)return;if(now-lastDetectAt>180){lastDetectAt=now;try{detectedQuad=detectCard();const frame=$('scanFrame');if(detectedQuad){stableCardFrames++;frame.classList.add('detected');$('scanHint').textContent='✓ 已发现卡片 · 自动锁定中';$('camStatus').textContent='已锁定卡片 · '+($('camStatus').dataset.detectStats||'');drawDetection();if(stableCardFrames>=3&&!autoScanBusy&&!cardScanned){autoScanBusy=true;cardScanned=true;captureDetectedCard(true);}}else{stableCardFrames=0;cardScanned=false;frame.classList.remove('detected');$('scanHint').textContent='将卡片正面放入框内，保持稳定';$('camStatus').textContent=cvReady?'正在寻找卡片… '+($('camStatus').dataset.detectStats||'分析画面中'):'视觉引擎加载中…';clearDetection();}}catch(e){$('camStatus').textContent='边缘检测暂不可用，请手动拍照或上传照片。';}}scanLoopId=requestAnimationFrame(loop);};scanLoopId=requestAnimationFrame(loop);}
+function startCardDetection(){cancelAnimationFrame(scanLoopId);stableCardFrames=0;const loop=now=>{if(!stream)return;if(now-lastDetectAt>180){lastDetectAt=now;try{detectedQuad=detectCard();const frame=$('scanFrame');if(detectedQuad){stableCardFrames++;frame.classList.add('detected');$('scanHint').textContent='✓ 已发现卡片 · 自动锁定中';$('camStatus').textContent='已锁定卡片 · '+($('camStatus').dataset.detectStats||'');drawDetection();if(stableCardFrames>=3&&!autoScanBusy&&!cardScanned){autoScanBusy=true;cardScanned=true;captureDetectedCard(true);}}else{stableCardFrames=0;cardScanned=false;frame.classList.remove('detected');$('scanHint').textContent='将卡片正面放入框内，保持稳定';$('camStatus').textContent=cvReady?'正在寻找卡片… '+($('camStatus').dataset.detectStats||'分析画面中'):'视觉引擎加载中…';clearDetection();}}catch(e){$('camStatus').textContent='检测引擎错误：'+(e&&e.message?e.message:String(e));$('camStatus').dataset.detectError=String(e&&e.stack||e);}}scanLoopId=requestAnimationFrame(loop);};scanLoopId=requestAnimationFrame(loop);}
 function drawDetection(){
  const v=$('video'),c=$('detectOverlay'),ctx=c.getContext('2d'),dpr=window.devicePixelRatio||1;
  const box=$('scanStage').getBoundingClientRect();c.width=Math.round(box.width*dpr);c.height=Math.round(box.height*dpr);c.style.width=box.width+'px';c.style.height=box.height+'px';
