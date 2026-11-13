@@ -8,7 +8,7 @@
 :root{--bg:#0b1020;--panel:#151d30;--line:#29344b;--txt:#f5f7fb;--muted:#aab5c8;--gold:#f4c95d;--green:#69d6a3;--red:#ff8585}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#111a30,#080c17 65%);color:var(--txt);font:15px system-ui,-apple-system,sans-serif}
 main{max-width:760px;margin:auto;padding:18px 14px 44px}.brand{display:flex;align-items:center;gap:12px;margin:8px 0 18px}.logo{width:46px;height:46px;border-radius:15px;background:linear-gradient(135deg,#f6d36e,#f28a48);display:grid;place-items:center;color:#172033;font-size:25px;font-weight:900}.sub{color:var(--muted);font-size:12px}
-h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;gap:8px;margin:18px 0}.tab,button{border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}.tab{background:#202b42;color:#cbd5e1;flex:1}.tab.active,button.primary{background:var(--gold);color:#1b2231}.panel{background:rgba(21,29,48,.94);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}.muted{color:var(--muted)}.small{font-size:12px;color:var(--muted)}input,select{width:100%;background:#0d1526;border:1px solid #34425e;border-radius:11px;padding:12px;color:white;margin:6px 0 12px;font:inherit}label{font-size:13px;color:#d9e1ef}button{background:#2b3954;color:white;margin:4px 4px 4px 0}button:disabled{opacity:.45}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}.camera{width:100%;max-height:440px;object-fit:contain;background:#05080f;border-radius:14px}.hidden{display:none!important}.cardrow{display:flex;gap:13px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}.cardrow img{width:94px;max-height:132px;object-fit:contain;border-radius:8px}.price{font-size:25px;font-weight:800;color:var(--gold)}.pill{display:inline-block;background:#25334c;padding:4px 8px;border-radius:20px;font-size:11px;color:#dce6f5;margin:2px}.notice{border-left:3px solid var(--gold);padding:9px 11px;background:#222b3d;border-radius:6px;color:#dce3ee;font-size:12px;line-height:1.5}.success{color:var(--green)}.error{color:var(--red)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#0e1728;padding:12px;border-radius:12px}.metric strong{display:block;font-size:19px}.listitem{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}a{color:#9fc4ff}footer{padding:18px 3px;color:var(--muted);font-size:11px;line-height:1.6}
+h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;gap:8px;margin:18px 0}.tab,button{border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}.tab{background:#202b42;color:#cbd5e1;flex:1}.tab.active,button.primary{background:var(--gold);color:#1b2231}.panel{background:rgba(21,29,48,.94);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}.muted{color:var(--muted)}.small{font-size:12px;color:var(--muted)}input,select{width:100%;background:#0d1526;border:1px solid #34425e;border-radius:11px;padding:12px;color:white;margin:6px 0 12px;font:inherit}label{font-size:13px;color:#d9e1ef}button{background:#2b3954;color:white;margin:4px 4px 4px 0}button:disabled{opacity:.45}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}.camera{width:100%;max-height:440px;aspect-ratio:4/3;object-fit:contain;background:#05080f;border-radius:14px}.camera-stage{position:relative;width:100%;background:#05080f;border-radius:14px;overflow:hidden}.scan-guide{position:absolute;inset:5% 0;pointer-events:none;display:flex;align-items:center;justify-content:center}.scan-guide:before{content:"";height:88%;aspect-ratio:2.5/3.5;max-width:88%;border:2px solid #f4c95d;border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.22)}.scan-guide span{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:11px;background:rgba(0,0,0,.72);padding:4px 8px;border-radius:8px;color:#fff;white-space:nowrap}.hidden{display:none!important}.cardrow{display:flex;gap:13px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}.cardrow img{width:94px;max-height:132px;object-fit:contain;border-radius:8px}.price{font-size:25px;font-weight:800;color:var(--gold)}.pill{display:inline-block;background:#25334c;padding:4px 8px;border-radius:20px;font-size:11px;color:#dce6f5;margin:2px}.notice{border-left:3px solid var(--gold);padding:9px 11px;background:#222b3d;border-radius:6px;color:#dce3ee;font-size:12px;line-height:1.5}.success{color:var(--green)}.error{color:var(--red)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#0e1728;padding:12px;border-radius:12px}.metric strong{display:block;font-size:19px}.listitem{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}a{color:#9fc4ff}footer{padding:18px 3px;color:var(--muted);font-size:11px;line-height:1.6}
 @media(max-width:520px){main{padding:12px 10px 32px}.panel{padding:13px;border-radius:15px}.brand{gap:9px}h1{font-size:19px}.cardrow{gap:9px}.cardrow img{width:82px;max-height:116px}.row{gap:6px}.row>*{min-width:0}.tab,button{padding:11px 10px;font-size:13px}.grid{grid-template-columns:1fr 1fr}input,select{font-size:16px}}
 </style>
 </head>
@@ -18,8 +18,8 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <div class="tabs"><button class="tab active" data-tab="scan">📷 扫描</button><button class="tab" data-tab="collection">收藏账本</button><button class="tab" data-tab="settings">设置</button></div>
 <section id="scan">
 <div class="panel"><h2>① 扫描卡片</h2>
-<video id="video" class="camera hidden" autoplay playsinline></video><canvas id="canvas" class="hidden"></canvas>
-<div id="previewWrap" class="hidden"><img id="preview" class="camera" alt="卡片照片"></div>
+<div class="camera-stage" id="cameraStage"><video id="video" class="camera hidden" autoplay playsinline></video><div class="scan-guide" id="scanGuide"><span>把整张卡片放在框内</span></div></div><canvas id="canvas" class="hidden"></canvas>
+<div id="previewWrap" class="camera-stage hidden"><img id="preview" class="camera" alt="卡片照片"><div class="scan-guide"><span>确认整张卡片都在框内</span></div></div>
 <div class="row"><button id="startCam" class="primary">开启相机</button><button id="capture" disabled>拍照识别</button><button id="stopCam">关闭相机</button></div><button id="liveScan" class="primary">▶ 开始实时 Auto Scan</button>
 <div class="small" id="camStatus">建议将整张卡片放入画面，光线充足、避免反光。</div>
 <div class="row"><label style="flex:1">或选择卡片照片<input id="file" type="file" accept="image/*" capture="environment"></label></div>
@@ -71,26 +71,37 @@ async function photoDataUrl(blob){
 async function runAutoScan(){
  if(!currentPhoto)return false;
  $('ocrBtn').disabled=true;
- $('ocrStatus').textContent='免费本机 OCR：正在分析卡片名称和编号区域…';
+ $('ocrStatus').textContent='免费本机 OCR：先定位中央卡片框，再读取卡名和编号…';
  try{
   const url=URL.createObjectURL(currentPhoto);let img;
   try{img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('无法读取照片'));img.src=url;});}
   finally{URL.revokeObjectURL(url);}
   const w=img.naturalWidth,h=img.naturalHeight;
   if(!w||!h)throw new Error('照片尺寸无效');
-  const cropText=async(x,y,cw,ch,label)=>{
-   const scale=Math.min(3,Math.max(1.5,1800/Math.max(cw,ch)));
-   const c=document.createElement('canvas');c.width=Math.max(1,Math.round(cw*scale));c.height=Math.max(1,Math.round(ch*scale));
-   const ctx=c.getContext('2d');ctx.drawImage(img,x,y,cw,ch,0,0,c.width,c.height);
+  // Centered Pokémon-card guide: use a portrait crop instead of fixed
+  // percentages of the entire camera frame.
+  const targetAspect=2.5/3.5;
+  let cw,ch;
+  if(w/h>targetAspect){ch=h*.88;cw=ch*targetAspect;}
+  else{cw=w*.88;ch=cw/targetAspect;}
+  const x=(w-cw)/2,y=(h-ch)/2;
+  const cardCanvas=document.createElement('canvas');
+  cardCanvas.width=1600;cardCanvas.height=Math.round(1600/targetAspect);
+  const cardCtx=cardCanvas.getContext('2d');
+  cardCtx.drawImage(img,x,y,cw,ch,0,0,cardCanvas.width,cardCanvas.height);
+  const cropText=async(top,bottom,label)=>{
+   const sy=Math.round(cardCanvas.height*top),sh=Math.max(1,Math.round(cardCanvas.height*(bottom-top)));
+   const c=document.createElement('canvas');c.width=1600;c.height=Math.max(1,sh);
+   const ctx=c.getContext('2d');ctx.drawImage(cardCanvas,0,sy,1600,sh,0,0,1600,sh);
    const pixels=ctx.getImageData(0,0,c.width,c.height),d=pixels.data;
-   for(let i=0;i<d.length;i+=4){const gray=d[i]*.299+d[i+1]*.587+d[i+2]*.114;const v=Math.max(0,Math.min(255,(gray-128)*1.45+128));d[i]=d[i+1]=d[i+2]=v;}
+   for(let i=0;i<d.length;i+=4){const gray=d[i]*.299+d[i+1]*.587+d[i+2]*.114;const v=Math.max(0,Math.min(255,(gray-128)*1.35+128));d[i]=d[i+1]=d[i+2]=v;}
    ctx.putImageData(pixels,0,0);
-   $('ocrStatus').textContent='免费本机 OCR：读取'+label+'…';
+   $('ocrStatus').textContent='免费本机 OCR：读取卡片'+label+'…';
    const {data}=await Tesseract.recognize(c,'eng',{logger:m=>{if(m.status==='recognizing text')$('ocrStatus').textContent='免费本机 OCR：'+label+' '+Math.round((m.progress||0)*100)+'%';}});
    return data.text||'';
   };
-  const nameText=await cropText(0,0,w,Math.round(h*.24),'卡名区域');
-  const numberText=await cropText(0,Math.round(h*.82),w,Math.round(h*.18),'卡号区域');
+  const nameText=await cropText(.015,.20,'顶部名称');
+  const numberText=await cropText(.86,.995,'底部编号');
   const fullText=nameText+'\n'+numberText;
   const numberMatch=fullText.match(/\b0?\d{1,3}\s*[\/|]\s*\d{1,3}\b/);
   const normalizeName=x=>String(x||'').replace(/[^A-Za-z0-9' -]/g,' ').replace(/\s+/g,' ').trim();
@@ -100,8 +111,8 @@ async function runAutoScan(){
   $('cardName').value=candidate;
   if(numberMatch)$('cardNumber').value=numberMatch[0].replace(/[|]/g,'/').replace(/\s/g,'');
   if(candidate&&numberMatch){$('ocrStatus').textContent='本机免费 OCR 读取到：'+candidate+' · '+$('cardNumber').value+'。请核对后手动搜索；照片没有发送给 OpenAI。';return true;}
-  if(candidate||numberMatch){$('ocrStatus').textContent='本机免费 OCR 只读到'+(candidate?'卡名 '+candidate:'卡号 '+$('cardNumber').value)+'。另一项无法确认，不会猜测详情。';return false;}
-  $('ocrStatus').textContent='免费 OCR 无法可靠读取卡名或编号。请让卡片正面占满画面并避免反光。';return false;
+  if(candidate||numberMatch){$('ocrStatus').textContent='本机免费 OCR 只读到'+(candidate?'卡名 '+candidate:'卡号 '+$('cardNumber').value)+'。另一项无法确认；请把整张卡片放进黄色框内再试。';return false;}
+  $('ocrStatus').textContent='没有读到可靠卡名和编号。请调整距离，让整张卡片完整进入黄色框，避免只拍到卡片一部分。';return false;
  }catch(e){$('cardName').value='';$('ocrStatus').textContent='本机免费 OCR 失败：'+e.message+'。请重拍清晰正面照片。';return false;}
  finally{$('ocrBtn').disabled=false;}
 }
