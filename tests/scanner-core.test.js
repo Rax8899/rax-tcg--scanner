@@ -130,3 +130,10 @@ test("treats null and zero legacy market values as unpriced", () => {
   assert.equal(summary.unpricedQuantity, 2);
   assert.equal(summary.pricedCostBasis, 0);
 });
+
+
+test("does not merge the same card across different named collections", () => {
+  const a = core.upsertHolding({}, { id: 1, name: "Pikachu", collection: "Favorites", qty: 1, cost: 10 });
+  const b = core.upsertHolding(a.state, { id: 1, name: "Pikachu", collection: "For Sale", qty: 1, cost: 12 });
+  assert.equal(b.state.holdings.length, 2);
+});
