@@ -61,7 +61,7 @@ function showPhoto(blob){currentPhoto=blob;$('preview').src=URL.createObjectURL(
 async function runAutoScan(){
  if(!currentPhoto)return false;
  $('ocrBtn').disabled=true;
- $('ocrStatus').textContent='免费本机 OCR：先定位中央卡片框，再读取卡名和编号…';
+ $('ocrStatus').textContent='免费本机 OCR：正在整幅画面自动定位卡片…';
  try{
   const url=URL.createObjectURL(currentPhoto);let img;
   try{img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('无法读取照片'));img.src=url;});}
@@ -234,7 +234,7 @@ async function searchCards(auto=false){
    cards=readCardList(await api('/cards?'+fallback.toString()));matched=cards.filter(c=>RaxCore.matches(c,q));
   }
   matched.sort((x,y)=>RaxCore.scoreCard(y,q)-RaxCore.scoreCard(x,q));
-  if(!matched.length){$('results').innerHTML=auto?'<p class="error">AI 识别结果没有与市场目录精确匹配。为避免显示错误卡片或错误价格，请重新扫描清晰的卡片正面，或手动核对卡名和卡号。</p>':'<p class="error">没有找到符合卡名和卡号的卡片。请确认卡号格式、语言或卡片名称；Set 留空是允许的。</p>';return false;}
+  if(!matched.length){$('results').innerHTML=auto?'<p class="error">自动识别结果没有与市场目录精确匹配。为避免显示错误卡片或错误价格，请重新扫描清晰的卡片正面，或手动核对卡名和卡号。</p>':'<p class="error">没有找到符合卡名和卡号的卡片。请确认卡号格式、语言或卡片名称；Set 留空是允许的。</p>';return false;}
   if(auto){const clean=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();const aiName=clean(q.name),aiNum=RaxCore.normNumber(q.number);matched=matched.filter(c=>{const dbName=clean(c.name),dbNum=RaxCore.cardNumberParts(c);return aiName===dbName&&!!aiNum&&!!dbNum&&Number(dbNum.number)===Number(aiNum.number)&&Number(dbNum.total)===Number(aiNum.total);});if(!matched.length){$('results').innerHTML='<p class="error">OCR 结果与卡片目录没有精确匹配，因此没有加载任何价格。请把整张卡片完整入镜后重新扫描。</p>';return false;}}
   if(auto&&matched.length===1){$('results').innerHTML='<p class="success">已精确匹配唯一卡片：'+esc(matched[0].name)+'。正在读取市场详情和报价…</p>';await getPrice(matched[0].id,{name:q.name,number:q.number});return true;}
 
