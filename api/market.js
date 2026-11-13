@@ -12,7 +12,16 @@ function allowedPath(path) {
     /^sealed\/\d+\/listings\/(?:ebay|cardmarket|tcgplayer)$/.test(path);
 }
 module.exports = async function handler(req, res) {
+  const origin = String(req.headers.origin || "");
+  const allowedOrigins = new Set(["https://rax8899.github.io", "https://raxtcg.vercel.app"]);
+  if (allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Accept");
+  }
   res.setHeader("Cache-Control", "no-store");
+  if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "GET") return res.status(405).json({ error: { message: "Method not allowed" } });
   const key = process.env.PKMNPRICES_API_KEY;
   if (!key) return res.status(503).json({ error: { message: "PKMNPRICES_API_KEY is not configured in Vercel." } });
