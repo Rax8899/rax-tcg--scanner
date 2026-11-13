@@ -12,6 +12,11 @@ test("matches Cresselia 074/128 when set is blank", () => {
   assert.equal(core.matches(card, { name: "Cresselia", number: "074/128", set: "" }), true);
 });
 
+test("matches combined number fields and ignores leading zeroes", () => {
+  const card = { name: "Cresselia", number: "074/128", set: { name: "Silver Tempest" } };
+  assert.equal(core.matches(card, { name: "Cresselia", number: "74/128", set: "" }), true);
+});
+
 test("rejects a wrong collector number or explicit set", () => {
   const card = { name: "Cresselia", number: "074", total_set_number: "128", set: { name: "Silver Tempest" } };
   assert.equal(core.matches(card, { name: "Cresselia", number: "075/128", set: "" }), false);
