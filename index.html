@@ -36,7 +36,7 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <div class="notice">API 连接方式：本 Scanner 通过 RAX 安全 API 安全连接 PkmnPrices。API Key 保存在服务器端，不需要在这台设备输入或保存。</div><button id="testApi" class="primary">测试安全 API 连接</button><div id="apiStatus" class="small" aria-live="polite"></div><p class="small">市场数据覆盖范围、币种及报价来源取决于 PkmnPrices 账户方案；Cardmarket EUR 等数据不保证所有账户都可用。</p>
 <label>USD → MYR 汇率（可手动调整）</label><input id="fx" type="number" min="0.1" step="0.001" value="4.25"><button id="refreshFx">尝试更新汇率</button><div id="fxStatus" class="small"></div>
 <label>默认卡片品相</label><select id="condition"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select>
-<p class="notice">照片识别时，照片会发送到 RAX 服务器并转交 OpenAI 视觉模型处理，不会由本应用主动保存。请勿上传含个人资料的照片。相机权限要求 HTTPS 网站或 localhost。收藏账本保存在当前设备浏览器，不会自动同步到其他设备。</p></div></section>
+<p class="notice">免费识别：照片只在当前浏览器设备内由 Tesseract OCR 处理，不会发送给 OpenAI，也不需要 OpenAI API Key。市场查价仍连接 PkmnPrices，受其 API 额度和套餐限制。相机权限要求 HTTPS 网站或 localhost。收藏账本保存在当前设备浏览器，不会自动同步到其他设备。</p></div></section>
 <footer>RAX Scanner · Independent collector tool, not affiliated with Pokémon, Nintendo, TCGplayer or Cardmarket. Prices are sourced from PkmnPrices API where available; source timestamps are shown per quote. OCR uses Tesseract.js from its public CDN.</footer>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -69,41 +69,41 @@ async function photoDataUrl(blob){
  }finally{URL.revokeObjectURL(url);}
 }
 async function runAutoScan(){
- if(!currentPhoto)return;
+ if(!currentPhoto)return false;
  $('ocrBtn').disabled=true;
- $('ocrStatus').textContent='AI 正在读取卡片名称、卡号、系列和版本…';
+ $('ocrStatus').textContent='免费本机 OCR：正在分析卡片名称和编号区域…';
  try{
-  const image=await photoDataUrl(currentPhoto);
-  const response=await fetch('/api/vision',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({image})});
-  const result=await response.json();
-  if(!response.ok||!result.ok)throw new Error(result.error||('AI 识别失败（HTTP '+response.status+'）'));
-  const card=result.card||{};
-  if(!card.is_pokemon_card)throw new Error('AI 判断这张照片不是清晰可识别的 Pokémon 卡片。请调整角度和光线。');
-  if(card.name)$('cardName').value=card.name;
-  if(card.collector_number)$('cardNumber').value=card.collector_number.replace(/\s/g,'');
-  if(card.set_name)$('setName').value=card.set_name;
-  $('ocrStatus').textContent='AI 已识别：'+(card.name||'卡名未确定')+' · '+(card.collector_number||'卡号未确定')+' · 置信度 '+Math.round((Number(card.confidence)||0)*100)+'%。正在查找市场资料…';
-  return await searchCards(true);
- }catch(aiError){
-  const aiFailure=aiError.message||'AI 识别失败';
-  $('ocrStatus').textContent='AI 识别失败（'+aiFailure+'），正在尝试只读取卡号…';
-  try{
-   const {data}=await Tesseract.recognize(currentPhoto,'eng',{logger:m=>{
-    if(m.status==='recognizing text')$('ocrStatus').textContent='本机 OCR 读取卡号中 '+Math.round((m.progress||0)*100)+'%';
-   }});
-   const text=(data.text||'').replace(/\\s+/g,' ');
-   const match=text.match(/\\b0?\\d{1,3}\\s*[/|]\\s*\\d{1,3}\\b/);
-   $('cardName').value='';
-   if(match)$('cardNumber').value=match[0].replace(/[|]/g,'/').replace(/\\s/g,'');
-   $('ocrStatus').textContent=match
-    ? 'AI 识别失败：'+aiFailure+'。本机 OCR 只读到卡号 '+$('cardNumber').value+'；不会猜测卡名，避免显示错误卡片。'
-    : 'AI 识别失败：'+aiFailure+'。本机 OCR 也无法可靠读取卡号。请重新拍摄清晰正面照片。';
-  }catch(ocrError){
-   $('cardName').value='';
-   $('ocrStatus').textContent='AI 识别失败：'+aiFailure+'。本机 OCR 也失败：'+ocrError.message+'。不会猜测卡片资料。';
-  }
-  return false;
- }finally{$('ocrBtn').disabled=false;}
+  const url=URL.createObjectURL(currentPhoto);let img;
+  try{img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('无法读取照片'));img.src=url;});}
+  finally{URL.revokeObjectURL(url);}
+  const w=img.naturalWidth,h=img.naturalHeight;
+  if(!w||!h)throw new Error('照片尺寸无效');
+  const cropText=async(x,y,cw,ch,label)=>{
+   const scale=Math.min(3,Math.max(1.5,1800/Math.max(cw,ch)));
+   const c=document.createElement('canvas');c.width=Math.max(1,Math.round(cw*scale));c.height=Math.max(1,Math.round(ch*scale));
+   const ctx=c.getContext('2d');ctx.drawImage(img,x,y,cw,ch,0,0,c.width,c.height);
+   const pixels=ctx.getImageData(0,0,c.width,c.height),d=pixels.data;
+   for(let i=0;i<d.length;i+=4){const gray=d[i]*.299+d[i+1]*.587+d[i+2]*.114;const v=Math.max(0,Math.min(255,(gray-128)*1.45+128));d[i]=d[i+1]=d[i+2]=v;}
+   ctx.putImageData(pixels,0,0);
+   $('ocrStatus').textContent='免费本机 OCR：读取'+label+'…';
+   const {data}=await Tesseract.recognize(c,'eng',{logger:m=>{if(m.status==='recognizing text')$('ocrStatus').textContent='免费本机 OCR：'+label+' '+Math.round((m.progress||0)*100)+'%';}});
+   return data.text||'';
+  };
+  const nameText=await cropText(0,0,w,Math.round(h*.24),'卡名区域');
+  const numberText=await cropText(0,Math.round(h*.82),w,Math.round(h*.18),'卡号区域');
+  const fullText=nameText+'\n'+numberText;
+  const numberMatch=fullText.match(/\b0?\d{1,3}\s*[\/|]\s*\d{1,3}\b/);
+  const normalizeName=x=>String(x||'').replace(/[^A-Za-z0-9' -]/g,' ').replace(/\s+/g,' ').trim();
+  const lines=nameText.split(/\n/).map(normalizeName).filter(x=>x.length>=3&&x.length<=32);
+  const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT|EVOLVE|ILLUS?\.?|NO\.?|LENGTH|WEIGHT)\b/i;
+  const candidate=lines.find(x=>/^[A-Z][A-Za-z' -]+$/.test(x)&&!excluded.test(x))||'';
+  $('cardName').value=candidate;
+  if(numberMatch)$('cardNumber').value=numberMatch[0].replace(/[|]/g,'/').replace(/\s/g,'');
+  if(candidate&&numberMatch){$('ocrStatus').textContent='本机免费 OCR 读取到：'+candidate+' · '+$('cardNumber').value+'。请核对后手动搜索；照片没有发送给 OpenAI。';return true;}
+  if(candidate||numberMatch){$('ocrStatus').textContent='本机免费 OCR 只读到'+(candidate?'卡名 '+candidate:'卡号 '+$('cardNumber').value)+'。另一项无法确认，不会猜测详情。';return false;}
+  $('ocrStatus').textContent='免费 OCR 无法可靠读取卡名或编号。请让卡片正面占满画面并避免反光。';return false;
+ }catch(e){$('cardName').value='';$('ocrStatus').textContent='本机免费 OCR 失败：'+e.message+'。请重拍清晰正面照片。';return false;}
+ finally{$('ocrBtn').disabled=false;}
 }
 $('ocrBtn').onclick=runAutoScan;
 $('liveScan').onclick=async()=>{
@@ -119,7 +119,7 @@ $('liveScan').onclick=async()=>{
    if(v.readyState>=2&&v.videoWidth){
     const c=$('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);
     const blob=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',.88));
-    if(blob){currentPhoto=blob;const ok=await runAutoScan();if(ok){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent+=' 实时扫描已暂停，请确认下方卡片资料后再查看价格。';break;}}
+    if(blob){currentPhoto=blob;const ok=await runAutoScan();if(ok){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent+=' 实时扫描已暂停。请核对卡片资料，再手动点击搜索查价。';break;}}
    }
    await new Promise(resolve=>setTimeout(resolve,3500));
   }
