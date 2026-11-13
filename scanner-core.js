@@ -138,7 +138,7 @@
     for(const h of list){
       const qty=Math.max(1,Number(h&&h.qty)||1),cost=Math.max(0,Number(h&&h.cost)||0);
       quantity+=qty;costBasis+=cost*qty;
-      let value=Number(h&&h.marketMyr);
+      let value=h&&h.marketMyr!==null&&h.marketMyr!==undefined&&Number(h.marketMyr)>0?Number(h.marketMyr):NaN;
       if(!Number.isFinite(value)){
         const amount=Number(h&&(h.marketAmount??h.usd));
         const currency=String(h&&h.currency||"USD").toUpperCase();
