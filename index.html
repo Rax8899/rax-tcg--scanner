@@ -69,7 +69,7 @@ window.__raxCvLoadError=false;
 <script src="./scanner-core.js?v=20261113-rax2"></script>
 <script>
 const $=id=>document.getElementById(id);
-let stream=null, selected=null, currentPhoto=null, liveScanActive=false;
+let stream=null, selected=null, currentPhoto=null, liveScanActive=false, scanInProgress=false;
 const STORE='rax_pokemon_scanner_v1';
 function load(){try{return RaxCore.normalizeState(JSON.parse(localStorage.getItem(STORE)||'{}'))}catch{return RaxCore.emptyState()}}
 function save(state){localStorage.setItem(STORE,JSON.stringify(RaxCore.normalizeState(state)))}
@@ -91,13 +91,15 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function switchTab(tab){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));['home','scan','explore','collection','portfolio','watchlist','settings'].forEach(id=>$(id).classList.toggle('hidden',id!==tab));if(tab==='home')renderDashboard();if(tab==='collection')renderHoldings();if(tab==='portfolio')renderPortfolio();if(tab==='watchlist')renderWatchlist()}document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 async function attachCamera(){if(!stream)return;const track=stream.getVideoTracks()[0],settings=track&&track.getSettings?track.getSettings():{};const stage=$('cameraStage');$('video').srcObject=stream;$('video').classList.remove('hidden');$('previewWrap').classList.add('hidden');await $('video').play();const vw=$('video').videoWidth||settings.width,vh=$('video').videoHeight||settings.height;if(vw&&vh)stage.style.aspectRatio=vw+'/'+vh;$('capture').disabled=false;$('camStatus').textContent='相机已开启。系统会扫描整个画面寻找卡片，不要求卡片位于中央；请让四个角都完整入镜。'}
 $('startCam').onclick=async()=>{try{if(!stream)stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});await attachCamera();}catch(e){$('camStatus').textContent='无法开启相机：'+e.message+'。请确认 HTTPS、浏览器权限，或改用上传照片。'}};
-$('stopCam').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('video').classList.add('hidden');$('capture').disabled=true};
+$('stopCam').onclick=()=>{liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('video').srcObject=null;$('video').classList.add('hidden');$('capture').disabled=true;$('camStatus').textContent='相机已关闭。';};
 $('capture').onclick=()=>{let v=$('video'),c=$('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(blob=>showPhoto(blob),'image/jpeg',.92)};
 $('file').onchange=e=>{if(e.target.files[0])showPhoto(e.target.files[0])};
 function showPhoto(blob){currentPhoto=blob;$('preview').src=URL.createObjectURL(blob);$('previewWrap').classList.remove('hidden');$('ocrBtn').disabled=false;$('ocrStatus').textContent='照片已准备好，正在自动识别…';runAutoScan();}
 
 async function runAutoScan(){
  if(!currentPhoto)return false;
+ if(scanInProgress){$('ocrStatus').textContent='当前照片仍在识别中，请稍候…';return false;}
+ scanInProgress=true;
  $('ocrBtn').disabled=true;
  $('cardName').value='';$('cardNumber').value='';$('setName').value='';$('results').innerHTML='';
  $('ocrStatus').textContent='免费本机 OCR：正在整幅画面自动定位卡片…';
@@ -215,11 +217,11 @@ async function runAutoScan(){
   if(candidate||numberMatch){$('ocrStatus').textContent='本机免费 OCR 只读到'+(candidate?'卡名 '+candidate:'卡号 '+$('cardNumber').value)+'。另一项无法确认；请让整张卡片四角完整入镜后再试。';return false;}
   $('ocrStatus').textContent='没有读到可靠卡名和编号。请调整距离，让整张卡片四角都出现在画面中，避免只拍到卡片一部分。';return false;
  }catch(e){$('cardName').value='';$('ocrStatus').textContent='本机免费 OCR 失败：'+e.message+'。请重拍清晰正面照片。';return false;}
- finally{$('ocrBtn').disabled=false;}
+ finally{scanInProgress=false;$('ocrBtn').disabled=false;}
 }
 $('ocrBtn').onclick=runAutoScan;
 $('liveScan').onclick=async()=>{
- if(liveScanActive){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent='实时自动扫描已停止。';return;}
+ if(liveScanActive){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent='正在结束当前识别；完成后不会再启动下一轮扫描。';return;}
  try{
   if(!stream)stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
   await attachCamera();
@@ -230,11 +232,11 @@ $('liveScan').onclick=async()=>{
    if(v.readyState>=2&&v.videoWidth){
     const c=$('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);
     const blob=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',.88));
-    if(blob){currentPhoto=blob;const ok=await runAutoScan();if(ok){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent+=' 自动识别与市场查价流程已完成。';break;}}
+    if(blob&&liveScanActive){currentPhoto=blob;const ok=await runAutoScan();if(ok){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent+=' 自动识别与市场查价流程已完成。';break;}}
    }
    await new Promise(resolve=>setTimeout(resolve,3500));
   }
- }catch(e){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent='无法启动实时扫描：'+e.message;}
+ }catch(e){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent='无法启动实时扫描：'+e.message;}finally{if(!liveScanActive)$('liveScan').textContent='▶ 开始实时 Auto Scan';}
 };
 
 async function api(path){
