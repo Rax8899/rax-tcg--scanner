@@ -2,14 +2,14 @@
 const UPSTREAM = "https://api.pkmnprices.com/v1";
 function allowedPath(path) {
   return path === "cards" ||
-    /^cards\\/\\d+$/.test(path) ||
-    /^cards\\/\\d+\\/(?:prices\\/history|sales\\/volume)$/.test(path) ||
-    /^cards\\/\\d+\\/listings\\/(?:ebay|cardmarket|tcgplayer)$/.test(path) ||
+    /^cards\/\d+$/.test(path) ||
+    /^cards\/\d+\/(?:prices\/history|sales\/volume)$/.test(path) ||
+    /^cards\/\d+\/listings\/(?:ebay|cardmarket|tcgplayer)$/.test(path) ||
     path === "sets" ||
-    /^sets\\/\\d+$/.test(path) ||
+    /^sets\/\d+$/.test(path) ||
     path === "sealed" ||
-    /^sealed\\/\\d+$/.test(path) ||
-    /^sealed\\/\\d+\\/listings\\/(?:ebay|cardmarket|tcgplayer)$/.test(path);
+    /^sealed\/\d+$/.test(path) ||
+    /^sealed\/\d+\/listings\/(?:ebay|cardmarket|tcgplayer)$/.test(path);
 }
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
