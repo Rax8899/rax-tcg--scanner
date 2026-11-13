@@ -168,10 +168,14 @@ function getOcrWorker(){
 // Warm the OCR engine in the background so the first card does not pay the worker startup cost.
 window.addEventListener('load',()=>{getOcrWorker().catch(()=>{});});
 async function makeFastOcrImage(blob){
- const bitmap=await createImageBitmap(blob),scale=Math.min(1.55,1500/Math.max(bitmap.width,bitmap.height));
- const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
- const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
- return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('图片处理失败')),'image/jpeg',.92));
+ const bitmap=await createImageBitmap(blob);
+ // Camera preview is aimed at the card: trim outer desk/background, then upscale the useful center.
+ const sw=bitmap.width,sh=bitmap.height,cw=Math.round(sw*.82),ch=Math.round(sh*.86),sx=Math.round((sw-cw)/2),sy=Math.round((sh-ch)/2);
+ const scale=Math.min(2.2,1800/Math.max(cw,ch));
+ const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(cw*scale));canvas.height=Math.max(1,Math.round(ch*scale));
+ const ctx=canvas.getContext('2d',{willReadFrequently:true});
+ ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(bitmap,sx,sy,cw,ch,0,0,canvas.width,canvas.height);bitmap.close();
+ return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('图片处理失败')),'image/jpeg',.94));
 }
 function extractCollectorNumber(text){
  const normalized=String(text||'').replace(/[|丨]/g,'1').replace(/[oO]/g,'0');
@@ -180,9 +184,10 @@ function extractCollectorNumber(text){
  return '';
 }
 function extractNameGuess(text){
- const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT|ILLUSTRATOR|REGULATION|NO\\.?|©|POKEMON|POKÉMON)\\b/i;
- const candidates=String(text||'').split(/\\n/).map(x=>x.replace(/[^A-Za-z' -]/g,' ').replace(/\\s+/g,' ').trim()).filter(x=>x.length>=3&&x.length<=26&&!excluded.test(x)&&/[A-Za-z]/.test(x));
- return candidates.sort((a,b)=>b.length-a.length)[0]||'';
+ const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT|ILLUSTRATOR|REGULATION|NO\\.?|©|POKEMON|POKÉMON|AURORA|LUNAR|BLAST|GAIN)\\b/i;
+ const lines=String(text||'').split(/\\n/).map(x=>x.replace(/[^A-Za-z' -]/g,' ').replace(/\\s+/g,' ').trim()).filter(x=>x.length>=4&&x.length<=24&&!excluded.test(x)&&/[A-Za-z]/.test(x));
+ // Card title is near the top of the card; prefer the first plausible OCR line, not the longest attack name.
+ return lines[0]||'';
 }
 async function runAutoScan(){
  if(!currentPhoto)return;
@@ -190,7 +195,7 @@ async function runAutoScan(){
  try{
   const [worker,image]=await Promise.all([getOcrWorker(),makeFastOcrImage(currentPhoto)]);
   const {data}=await worker.recognize(image);
-  const text=data.text||'',number=extractCollectorNumber(text),name=extractNameGuess(text);
+  const text=data.text||'',number=extractCollectorNumber(text),name=extractNameGuess(text);$('ocrStatus').textContent='OCR 读取完成：'+(number?'卡号 '+number:(name?'疑似卡名 '+name:'未读到卡名/卡号'))+'；正在匹配资料…';
   if(number)$('cardNumber').value=number;
   if(name)$('cardName').value=name;
   if(number){
