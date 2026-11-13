@@ -69,3 +69,52 @@ test("matches card names despite punctuation and diacritics", () => {
   assert.equal(core.matches({ name: "Mr. Mime", number: "122", total_set_number: "165" }, { name: "Mr Mime", number: "122/165", set: "" }), true);
   assert.equal(core.matches({ name: "Flabébé", number: "083", total_set_number: "165" }, { name: "Flabebe", number: "083/165", set: "" }), true);
 });
+
+
+test("normalizes and migrates local collection state without dropping data", () => {
+  const state = core.normalizeState({ holdings: [{ id: 7, name: "Cresselia", qty: 2, cost: 10 }], watchlist: [{ id: 8 }], scanHistory: [{ id: 7 }] });
+  assert.equal(state.schemaVersion, 2);
+  assert.equal(state.holdings[0].qty, 2);
+  assert.equal(state.watchlist.length, 1);
+  assert.equal(state.scanHistory.length, 1);
+});
+
+test("merges duplicate holdings by identity and calculates weighted average cost", () => {
+  const first = core.upsertHolding({}, { id: 207163, name: "Cresselia", variant: "Normal", language: "English", condition: "Near Mint", qty: 2, cost: 10 });
+  const second = core.upsertHolding(first.state, { id: 207163, name: "Cresselia", variant: "Normal", language: "English", condition: "Near Mint", qty: 1, cost: 16 });
+  assert.equal(second.merged, true);
+  assert.equal(second.state.holdings.length, 1);
+  assert.equal(second.holding.qty, 3);
+  assert.equal(second.holding.cost, 12);
+});
+
+test("keeps variants and languages as separate holdings", () => {
+  const a = core.upsertHolding({}, { id: 1, variant: "Normal", language: "English", qty: 1 });
+  const b = core.upsertHolding(a.state, { id: 1, variant: "Holofoil", language: "Japanese", qty: 1 });
+  assert.equal(b.state.holdings.length, 2);
+});
+
+test("portfolio never treats missing market data as zero value", () => {
+  const summary = core.portfolioSummary([
+    { qty: 2, cost: 10, marketMyr: 50 },
+    { qty: 1, cost: 20 }
+  ]);
+  assert.equal(summary.quantity, 3);
+  assert.equal(summary.costBasis, 40);
+  assert.equal(summary.marketValue, 100);
+  assert.equal(summary.valuedQuantity, 2);
+  assert.equal(summary.unpricedQuantity, 1);
+  assert.equal(summary.pricedCostBasis, 20);
+  assert.equal(summary.pnl, 80);
+});
+
+test("converts USD and EUR using explicitly supplied rates only", () => {
+  const summary = core.portfolioSummary([
+    { qty: 1, cost: 5, marketAmount: 2, currency: "USD" },
+    { qty: 1, cost: 5, marketAmount: 3, currency: "EUR" },
+    { qty: 1, cost: 5, marketAmount: 10, currency: "JPY" }
+  ], { USD: 4.5, EUR: 4.9 });
+  assert.equal(summary.marketValue, 23.7);
+  assert.equal(summary.valuedQuantity, 2);
+  assert.equal(summary.unpricedQuantity, 1);
+});
