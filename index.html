@@ -40,7 +40,7 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <footer>RAX Scanner · Independent collector tool, not affiliated with Pokémon, Nintendo, TCGplayer or Cardmarket. Prices are sourced from PkmnPrices API where available; source timestamps are shown per quote. OCR uses Tesseract.js from its public CDN.</footer>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script async src="https://docs.opencv.org/4.12.0/opencv.js" onerror="window.__raxCvLoadError=true"></script>
+<script async src="https://docs.opencv.org/4.12.0/opencv.js" onerror="window.__raxCvLoadError=true;(function(){var urls=['https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js','https://unpkg.com/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js'];function load(i){if(i>=urls.length){window.__raxCvLoadError=true;return;}var tag=document.createElement('script');tag.src=urls[i];tag.async=true;tag.onload=function(){window.__raxCvLoadError=false};tag.onerror=function(){load(i+1)};document.head.appendChild(tag)}load(0)})()"></script>
 <script src="./scanner-core.js?v=20261113-rax1"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -80,7 +80,7 @@ async function runAutoScan(){
    if(window.__raxCvModule)return window.__raxCvModule;
    const started=Date.now();
    while(!window.cv&&!window.__raxCvLoadError&&Date.now()-started<30000)await new Promise(r=>setTimeout(r,100));
-   if(window.__raxCvLoadError)throw new Error('OpenCV.js 下载失败，请检查网络连接');
+   if(window.__raxCvLoadError)throw new Error('OpenCV.js 官方源及备用 CDN 均无法下载；请检查当前网络是否拦截 docs.opencv.org、jsDelivr 或 unpkg');
    if(!window.cv)throw new Error('OpenCV.js 尚未加载完成');
    let module=window.cv;
    // Current official OpenCV.js builds expose cv as a Promise. Await it
