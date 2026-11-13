@@ -119,13 +119,13 @@ async function scanWholeCameraFrame(){
  if(!stream||liveOcrBusy||autoScanBusy||!$('video').videoWidth)return;
  liveOcrBusy=true;
  try{
-  const v=$('video'),w=960,h=Math.round(w*v.videoHeight/v.videoWidth),canvas=document.createElement('canvas');
+  const v=$('video'),w=1280,h=Math.round(w*v.videoHeight/v.videoWidth),canvas=document.createElement('canvas');
   canvas.width=w;canvas.height=h;canvas.getContext('2d',{willReadFrequently:true}).drawImage(v,0,0,w,h);
-  const blob=await new Promise((resolve,reject)=>canvas.toBlob(x=>x?resolve(x):reject(Error('无法读取相机画面')),'image/jpeg',.9));
+  const blob=await new Promise((resolve,reject)=>canvas.toBlob(x=>x?resolve(x):reject(Error('无法读取相机画面')),'image/jpeg',.92));
   currentPhoto=blob;
-  $('camStatus').textContent='正在即时识别整个镜头画面…';
+  $('camStatus').textContent='已取得清晰画面，正在发送 OpenAI Vision…';
   await runAutoScan();
- }catch(e){$('camStatus').textContent='即时识别失败：'+e.message;}
+ }catch(e){$('camStatus').textContent='扫描失败：'+(e&&e.message||'未知错误');}
  finally{liveOcrBusy=false;}
 }
 function startCardDetection(){
@@ -197,17 +197,26 @@ async function identifyCardWithVision(blob){
 }
 async function runAutoScan(){
  if(!currentPhoto||autoScanBusy)return;
- autoScanBusy=true;$('ocrBtn').disabled=true;$('ocrStatus').textContent='OpenAI Vision 正在识别卡片图像…';
+ autoScanBusy=true;$('ocrBtn').disabled=true;
+ $('camStatus').textContent='OpenAI Vision 正在分析卡片…';
+ $('ocrStatus').textContent='正在识别卡名、卡号与系列，请稍候…';
  try{
   const card=await identifyCardWithVision(currentPhoto);
   const name=String(card.name||'').trim(),number=String(card.number||'').trim(),set=String(card.set_name||'').trim();
-  if(card.is_pokemon_card!==true||Number(card.confidence)<0.45||(!name&&!number))throw Error('AI 暂时无法可靠确认这是一张 Pokémon 卡，请让卡片更靠近镜头并保持清晰。');
+  if(card.is_pokemon_card!==true||Number(card.confidence)<0.45||(!name&&!number))throw Error('AI 未能确认卡片身份（可能是图片不够清晰或卡片太小）。');
   $('cardName').value=name;$('cardNumber').value=number;$('setName').value=set;
-  $('ocrStatus').textContent='AI 已识别 '+(name||'卡片')+(number?' · '+number:'')+(set?' · '+set:'')+'，正在查询市场资料…';
+  const identity='已识别：'+(name||'Pokémon 卡')+(number?' · '+number:'')+(set?' · '+set:'');
+  $('camStatus').textContent=identity+'；正在查询市场资料…';
+  $('ocrStatus').textContent=identity+' · AI 信心 '+Math.round(Number(card.confidence)*100)+'%';
+  $('scanResult').innerHTML='<div class="scan-empty"><div class="empty-orb">✓</div><b>'+esc(name||'Pokémon 卡')+'</b><span>'+esc(set||'系列待确认')+' · '+esc(number||'卡号待确认')+'</span><span>身份已识别，正在查询市场报价…</span></div>';
   await searchCards(true);
+  if($('results').textContent.trim())$('camStatus').textContent=identity+'；'+$('results').textContent.trim().slice(0,110);
  }catch(e){
-  $('ocrStatus').textContent='视觉识别未完成：'+e.message;
-  $('results').innerHTML='<div class="notice">未能可靠确认卡片身份。请把卡片放大一些、减少反光后自动重试。</div>';
+  const message=e&&e.message||'未知错误';
+  $('camStatus').textContent='识别失败：'+message;
+  $('ocrStatus').textContent='OpenAI Vision：'+message;
+  $('scanResult').innerHTML='<div class="scan-empty"><div class="empty-orb">!</div><b>暂时无法识别</b><span>'+esc(message)+'</span><span>请把卡片靠近镜头，保持清晰后重试</span></div>';
+  $('results').innerHTML='<div class="notice">'+esc(message)+'</div>';
  }finally{$('ocrBtn').disabled=false;autoScanBusy=false;}
 }
 $('ocrBtn').onclick=runAutoScan;
