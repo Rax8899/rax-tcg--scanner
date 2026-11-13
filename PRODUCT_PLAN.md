@@ -55,7 +55,9 @@ A local-first Pokémon TCG collector workspace inspired by the public feature se
 - [x] Duplicate merge and weighted average cost
 - [x] No fabricated valuation for missing market data
 - [x] Unit and regression tests
-- [ ] Collection grouping and bulk management
+- [x] Named collections and collection filtering
+- [ ] Bulk management
+- [x] Expanded CSV export fields
 - [ ] Export/import round-trip tests
 
 **M2 — Scanner reliability**
