@@ -34,8 +34,8 @@ module.exports = async function handler(req, res) {
     const cards = Array.isArray(searchData.data) ? searchData.data : Array.isArray(searchData.cards) ? searchData.cards : [];
     const matches = cards.filter(c =>
       String(c.name || "").toLowerCase() === "cresselia" &&
-      parseInt(String(c.number || "").match(/\\d+/)?.[0] || "NaN", 10) === 74 &&
-      parseInt(String(c.total_set_number || "").match(/\\d+/)?.[0] || "NaN", 10) === 128
+      Number(String(c.number || "").replace(/\\D/g, "")) === 74 &&
+      Number(String(c.total_set_number || "").replace(/\\D/g, "")) === 128
     );
 
     let priceCheck = null;
