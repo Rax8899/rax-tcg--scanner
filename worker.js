@@ -1,6 +1,9 @@
 const UPSTREAM = "https://api.pkmnprices.com/v1";
 const ALLOWED_ORIGINS = new Set([
   "https://rax8899.github.io",
+  "https://raxtcg.vercel.app",
+  "https://raxtcg-rax8899.vercel.app",
+  "https://raxtcg-git-main-rax8899.vercel.app",
 ]);
 
 function corsHeaders(origin) {
