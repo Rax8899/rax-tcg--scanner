@@ -154,7 +154,7 @@ window.getPrice=async id=>{
   }).join('');
   html+='<p class="notice">价格按来源分别显示：TCGplayer（USD）及服务商账户可用时的 Cardmarket（EUR）。MYR 为换算参考，不是马来西亚本地成交价。请核对语言、Holo / Reverse Holo、版本和品相。</p>';
   $('results').innerHTML=html;
-  $('results').querySelectorAll('[data-add]').forEach((btn,i)=>btn.onclick=()=>{const p=rows[i];window.addHolding(c.id,c.name,Number(p.market_price)||0,(p.currency||'USD')+' '+(p.variant||''));});
+  $('results').querySelectorAll('[data-add]').forEach((btn,i)=>btn.onclick=()=>{const p=rows[i];window.addHolding(c.id,c.name,Number(p.market_price)||0,(p.currency||'USD')+' '+(p.variant||'')+' · '+(p.condition||'condition unknown')+' · '+(p.source||'source unknown'));});
  }catch(e){$('results').innerHTML='<p class="error">'+esc(e.message)+'</p><p class="small">卡片已选中，但价格读取失败。请稍后重试；收藏账本不会被删除。</p>';}
 };
 window.addHolding=(id,name,amount,quoteLabel)=>{let cost=prompt('输入你的买入成本（RM）：','');if(cost===null)return;let qty=prompt('数量：','1');if(qty===null)return;const quote=String(quoteLabel||'').split(' ');let s=load();s.holdings.push({id,name,marketPrice:Number(amount)||0,currency:quote[0]||'USD',variant:quote.slice(1).join(' '),cost:Number(cost)||0,qty:Math.max(1,Number(qty)||1),date:new Date().toISOString().slice(0,10)});save(s);alert('已加入本机收藏账本。报价已作为加入当日的参考快照保存，不代表实时价格。')};
