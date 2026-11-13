@@ -20,7 +20,7 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <div class="panel"><h2>① 扫描卡片</h2>
 <video id="video" class="camera hidden" autoplay playsinline></video><canvas id="canvas" class="hidden"></canvas>
 <div id="previewWrap" class="hidden"><img id="preview" class="camera" alt="卡片照片"></div>
-<div class="row"><button id="startCam" class="primary">开启相机</button><button id="capture" disabled>拍照识别</button><button id="stopCam">关闭相机</button></div>
+<div class="row"><button id="startCam" class="primary">开启相机</button><button id="capture" disabled>拍照识别</button><button id="stopCam">关闭相机</button></div><button id="liveScan" class="primary">▶ 开始实时 Auto Scan</button>
 <div class="small" id="camStatus">建议将整张卡片放入画面，光线充足、避免反光。</div>
 <div class="row"><label style="flex:1">或选择卡片照片<input id="file" type="file" accept="image/*" capture="environment"></label></div>
 <button id="ocrBtn" class="primary" disabled>自动识别并查价</button><div id="ocrStatus" class="small"></div>
@@ -43,7 +43,7 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <script src="./scanner-core.js?v=20261113-rax1"></script>
 <script>
 const $=id=>document.getElementById(id);
-let stream=null, selected=null, currentPhoto=null;
+let stream=null, selected=null, currentPhoto=null, liveScanActive=false;
 const STORE='rax_pokemon_scanner_v1';
 function load(){try{return JSON.parse(localStorage.getItem(STORE)||'{"holdings":[]}')}catch{return {holdings:[]}}}
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
@@ -83,8 +83,8 @@ async function runAutoScan(){
   if(card.collector_number)$('cardNumber').value=card.collector_number.replace(/\s/g,'');
   if(card.set_name)$('setName').value=card.set_name;
   $('ocrStatus').textContent='AI 已识别：'+(card.name||'卡名未确定')+' · '+(card.collector_number||'卡号未确定')+' · 置信度 '+Math.round((Number(card.confidence)||0)*100)+'%。正在查找市场资料…';
-  await searchCards(true);
- }catch(aiError){
+  await searchCards(true); return true;
+  return false;\n }catch(aiError){
   $('ocrStatus').textContent='AI 识别未成功，正在尝试本机 OCR：'+aiError.message;
   try{
    const {data}=await Tesseract.recognize(currentPhoto,'eng',{logger:m=>{
@@ -104,6 +104,26 @@ async function runAutoScan(){
  }finally{$('ocrBtn').disabled=false;}
 }
 $('ocrBtn').onclick=runAutoScan;
+$('liveScan').onclick=async()=>{
+ if(liveScanActive){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent='实时自动扫描已停止。';return;}
+ try{
+  if(!stream){stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});$('video').srcObject=stream;}
+  $('video').classList.remove('hidden');$('previewWrap').classList.add('hidden');
+  await $('video').play();
+  liveScanActive=true;$('liveScan').textContent='■ 停止 Auto Scan';
+  $('ocrStatus').textContent='实时扫描已启动：请把卡片正面放入画面并保持清晰。';
+  while(liveScanActive){
+   const v=$('video');
+   if(v.readyState>=2&&v.videoWidth){
+    const c=$('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);
+    const blob=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',.88));
+    if(blob){currentPhoto=blob;const ok=await runAutoScan();if(ok){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent+=' 实时扫描已暂停，请确认下方卡片资料后再查看价格。';break;}}
+   }
+   await new Promise(resolve=>setTimeout(resolve,3500));
+  }
+ }catch(e){liveScanActive=false;$('liveScan').textContent='▶ 开始实时 Auto Scan';$('ocrStatus').textContent='无法启动实时扫描：'+e.message;}
+};
+
 async function api(path){
  const suffix=String(path||'');
  const split=suffix.split('?'),rawRoute=split[0]||'',route=rawRoute.startsWith('/')?rawRoute.slice(1):rawRoute,query=split[1]||'';
