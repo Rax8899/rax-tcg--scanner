@@ -114,7 +114,7 @@ test("converts USD and EUR using explicitly supplied rates only", () => {
     { qty: 1, cost: 5, marketAmount: 3, currency: "EUR" },
     { qty: 1, cost: 5, marketAmount: 10, currency: "JPY" }
   ], { USD: 4.5, EUR: 4.9 });
-  assert.equal(summary.marketValue, 23.7);
+  assert.ok(Math.abs(summary.marketValue - 23.7) < 1e-9);
   assert.equal(summary.valuedQuantity, 2);
   assert.equal(summary.unpricedQuantity, 1);
 });
