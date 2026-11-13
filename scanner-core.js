@@ -6,11 +6,11 @@
     return m?{number:String(parseInt(m[1],10)),total:String(parseInt(m[2],10))}:null;
   }
   function cardNumberParts(card){
-    const raw=String(card&&card.number??"").trim();
+    const raw=String((card&&card.number)??"").trim();
     const combined=normNumber(raw);
     if(combined)return combined;
     const n=raw.match(/\d+/);
-    const total=String(card&&card.total_set_number??"").match(/\d+/);
+    const total=String((card&&card.total_set_number)??"").match(/\d+/);
     return n&&total?{number:String(parseInt(n[0],10)),total:String(parseInt(total[0],10))}:null;
   }
   function sameNum(a,b){
