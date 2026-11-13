@@ -95,62 +95,52 @@ function drawDetection(){
 function clearDetection(){const c=$('detectOverlay');c.getContext('2d').clearRect(0,0,c.width,c.height);}
 function captureDetectedCard(automatic){const v=$('video'),c=$('canvas');if(!v.videoWidth)return;try{if(cvReady&&detectedQuad){const ordered=detectedQuad,w=744,h=1040,src=cv.imread(v),srcPts=cv.matFromArray(4,1,cv.CV_32FC2,ordered.flatMap(p=>[p.x*src.cols,p.y*src.rows])),dstPts=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,w,0,w,h,0,h]),M=cv.getPerspectiveTransform(srcPts,dstPts),dst=new cv.Mat();cv.warpPerspective(src,dst,M,new cv.Size(w,h));cv.imshow(c,dst);const blobCanvas=document.createElement('canvas');blobCanvas.width=w;blobCanvas.height=h;cv.imshow(blobCanvas,dst);blobCanvas.toBlob(blob=>{if(blob){showPhoto(blob);if(automatic)runAutoScan();}},'image/jpeg',.96);src.delete();srcPts.delete();dstPts.delete();M.delete();dst.delete();}else{c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(blob=>{if(blob){showPhoto(blob);if(automatic)runAutoScan();}},'image/jpeg',.95);}}catch(e){$('camStatus').textContent='卡片裁切失败，请重新对准拍摄。';autoScanBusy=false;}}
 
-async function prepareOcrImage(blob){
- const bitmap=await createImageBitmap(blob);
- const scale=Math.min(2,1800/Math.max(bitmap.width,bitmap.height));
- const canvas=document.createElement('canvas');
- canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+let ocrWorkerPromise=null,ocrWorkerReady=false;
+function getOcrWorker(){
+ if(!ocrWorkerPromise){
+  ocrWorkerPromise=Tesseract.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')$('ocrStatus').textContent='正在识别卡片文字 '+Math.round((m.progress||0)*100)+'%';}});
+  ocrWorkerPromise=ocrWorkerPromise.then(async worker=>{await worker.setParameters({preserve_interword_spaces:'1'});ocrWorkerReady=true;$('camStatus').textContent='相机与快速文字识别已就绪 · 将卡片放入框内';return worker;}).catch(err=>{ocrWorkerPromise=null;throw err;});
+ }
+ return ocrWorkerPromise;
+}
+// Warm the OCR engine in the background so the first card does not pay the worker startup cost.
+window.addEventListener('load',()=>{getOcrWorker().catch(()=>{});});
+async function makeFastOcrImage(blob){
+ const bitmap=await createImageBitmap(blob),scale=Math.min(1.55,1500/Math.max(bitmap.width,bitmap.height));
+ const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
  const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
- const frame=ctx.getImageData(0,0,canvas.width,canvas.height),d=frame.data;
- for(let i=0;i<d.length;i+=4){const gray=.299*d[i]+.587*d[i+1]+.114*d[i+2];const enhanced=Math.max(0,Math.min(255,(gray-128)*1.18+128));d[i]=d[i+1]=d[i+2]=enhanced;}
- ctx.putImageData(frame,0,0);
- return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('无法处理图片')), 'image/jpeg',.94));
-}
-async function recognizeBlob(blob,label){
- const {data}=await Tesseract.recognize(blob,'eng',{logger:m=>{if(m.status==='recognizing text')$('ocrStatus').textContent=label+' '+Math.round((m.progress||0)*100)+'%';}});
- return data.text||'';
-}
-async function makeOcrPasses(blob){
- const bitmap=await createImageBitmap(blob),w=bitmap.width,h=bitmap.height;
- const scale=Math.min(2,1800/Math.max(w,h)),W=Math.max(1,Math.round(w*scale)),H=Math.max(1,Math.round(h*scale));
- const base=document.createElement('canvas');base.width=W;base.height=H;
- const ctx=base.getContext('2d',{willReadFrequently:true});ctx.drawImage(bitmap,0,0,W,H);bitmap.close();
- const pixels=ctx.getImageData(0,0,W,H),d=pixels.data;
- for(let i=0;i<d.length;i+=4){const g=.299*d[i]+.587*d[i+1]+.114*d[i+2],v=Math.max(0,Math.min(255,(g-128)*1.25+128));d[i]=d[i+1]=d[i+2]=v;}
- ctx.putImageData(pixels,0,0);
- const crop=(x,y,cw,ch)=>{const c=document.createElement('canvas');c.width=Math.max(1,Math.round(W*cw));c.height=Math.max(1,Math.round(H*ch));c.getContext('2d').drawImage(base,Math.round(W*x),Math.round(H*y),c.width,c.height,0,0,c.width,c.height);return new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(Error('图片裁切失败')),'image/jpeg',.95));};
- return {full:await new Promise((resolve,reject)=>base.toBlob(b=>b?resolve(b):reject(Error('图片处理失败')),'image/jpeg',.95)),top:await crop(0,0,1,.30),bottom:await crop(0,.78,1,.22)};
+ return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('图片处理失败')),'image/jpeg',.92));
 }
 function extractCollectorNumber(text){
  const normalized=String(text||'').replace(/[|丨]/g,'1').replace(/[oO]/g,'0');
- const patterns=[/\b(\d{1,3})\s*[\/\\]\s*(\d{1,3})\b/g,/\b(\d{1,3})\s*[-–]\s*(\d{1,3})\b/g];
+ const patterns=[/\\b(\\d{1,3})\\s*[\\/\\\\]\\s*(\\d{1,3})\\b/g,/\\b(\\d{1,3})\\s*[-–]\\s*(\\d{1,3})\\b/g];
  for(const re of patterns){const m=re.exec(normalized);if(m&&Number(m[1])>0&&Number(m[2])>=Number(m[1]))return String(Number(m[1])).padStart(3,'0')+'/'+String(Number(m[2]));}
  return '';
 }
 function extractNameGuess(text){
- const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT|ILLUSTRATOR|REGULATION|NO\.?|©|POKEMON|POKÉMON)\b/i;
- const candidates=String(text||'').split(/\n/).map(x=>x.replace(/[^A-Za-z' -]/g,' ').replace(/\s+/g,' ').trim()).filter(x=>x.length>=3&&x.length<=26&&!excluded.test(x)&&/[A-Za-z]/.test(x));
+ const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT|ILLUSTRATOR|REGULATION|NO\\.?|©|POKEMON|POKÉMON)\\b/i;
+ const candidates=String(text||'').split(/\\n/).map(x=>x.replace(/[^A-Za-z' -]/g,' ').replace(/\\s+/g,' ').trim()).filter(x=>x.length>=3&&x.length<=26&&!excluded.test(x)&&/[A-Za-z]/.test(x));
  return candidates.sort((a,b)=>b.length-a.length)[0]||'';
 }
 async function runAutoScan(){
  if(!currentPhoto)return;
- $('ocrBtn').disabled=true;$('ocrStatus').textContent='正在增强图片并识别卡名、卡号…';
+ $('ocrBtn').disabled=true;$('ocrStatus').textContent=ocrWorkerReady?'快速识别中…':'首次启动文字识别引擎…';
  try{
-  const passes=await makeOcrPasses(currentPhoto);
-  const [full,top,bottom]=await Promise.all([recognizeBlob(passes.full,'整张卡片识别中'),recognizeBlob(passes.top,'卡名区域识别中'),recognizeBlob(passes.bottom,'卡号区域识别中')]);
-  const number=extractCollectorNumber(bottom+'\n'+full),name=extractNameGuess(top+'\n'+full);
+  const [worker,image]=await Promise.all([getOcrWorker(),makeFastOcrImage(currentPhoto)]);
+  const {data}=await worker.recognize(image);
+  const text=data.text||'',number=extractCollectorNumber(text),name=extractNameGuess(text);
   if(number)$('cardNumber').value=number;
   if(name)$('cardName').value=name;
   if(number){
    $('cardName').value='';
-   $('ocrStatus').textContent='已读取卡号 '+number+'。为避免 OCR 把卡名读错，先按卡号搜出候选卡，再由卡图核对。';
+   $('ocrStatus').textContent='已读取卡号 '+number+'，正在匹配卡片目录与报价…';
    await searchCards(true);
   }else if(name){
-   $('ocrStatus').textContent='读到疑似卡名「'+name+'」，但没有可靠卡号。正在按卡名查找候选，请核对卡图。';
+   $('ocrStatus').textContent='读到疑似卡名「'+name+'」，正在查找候选…';
    await searchCards(true);
   }else{
-   $('ocrStatus').textContent='暂时无法可靠读取卡名或卡号。请重新拍清晰、正面、无反光的照片；也可以直接点搜索并输入卡号。';
-   $('results').innerHTML='<div class="notice">识别没有足够把握，系统没有猜一张卡给你。请让整张卡片保持在画面内，特别是顶部卡名和底部卡号。</div>';
+   $('ocrStatus').textContent='未能可靠读取卡号。请将卡片靠近镜头、避免反光，再试一次。';
+   $('results').innerHTML='<div class="notice">OCR 没有足够把握，不会猜测卡片身份。请确保卡片四边完整入镜。</div>';
   }
  }catch(e){$('ocrStatus').textContent='识别失败：'+e.message+'。请重新拍照或上传清晰照片。';}
  finally{$('ocrBtn').disabled=false;autoScanBusy=false;}
