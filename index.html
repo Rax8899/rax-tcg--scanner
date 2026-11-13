@@ -115,7 +115,7 @@ function detectCard(){
  }finally{mat.delete();gray.delete();edges.delete();closed.delete();contours.delete();hierarchy.delete();if(kernel)kernel.delete();}
 }
 let liveOcrBusy=false,lastLiveOcrAt=0,lastLiveOcrText='';
-async function scanWholeCameraFrame(){
+async async function scanWholeCameraFrame(){
  if(!stream||liveOcrBusy||autoScanBusy||!$('video').videoWidth)return;
  liveOcrBusy=true;
  try{
