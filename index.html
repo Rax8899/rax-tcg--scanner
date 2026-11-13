@@ -50,15 +50,13 @@ main{position:relative;max-width:850px;margin:auto;padding:22px 16px 48px}.brand
 <label>USD → MYR 汇率（可手动调整）</label><input id="fx" type="number" min="0.1" step="0.001" value="4.25"><button id="refreshFx">尝试更新汇率</button><div id="fxStatus" class="small"></div>
 <label>默认卡片品相</label><select id="condition"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select>
 <p class="notice">本版本不上传你的照片。OCR 在浏览器内运行；扫描结果需你确认。相机权限要求 HTTPS 网站或 localhost。建议使用本 RAXTCG 官方部署网址，并允许浏览器访问相机。收藏账本保存在当前设备浏览器，不会自动同步到其他设备。</p></div></section>
-<footer>RAXTCG · Independent collector tool, not affiliated with Pokémon, Nintendo, TCGplayer or Cardmarket. Prices are sourced from PkmnPrices API where available; source timestamps are shown per quote. OCR uses Tesseract.js from its public CDN.</footer>
+<footer>RAXTCG · Independent collector tool, not affiliated with Pokémon, Nintendo, TCGplayer or Cardmarket. Prices are sourced from PkmnPrices API where available; source timestamps are shown per quote. Card identification uses OpenAI Vision; market quotes use PkmnPrices where available.</footer>
 </main>
-<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="./scanner-core.js?v=3f3e228"></script>
 <script>
 const $=id=>document.getElementById(id);
 let stream=null, selected=null, currentPhoto=null, scanLoopId=0, lastDetectAt=0, stableCardFrames=0, detectedQuad=null, autoScanBusy=false, cardScanned=false, cvReady=false;
-window.addEventListener('load',()=>{const wait=()=>{if(window.cv&&cv.Mat){cvReady=true;$('camStatus').textContent='视觉引擎已就绪 · 自动寻找卡片';}else{if(window.cv&&!cv.Mat&&typeof cv.onRuntimeInitialized!=='function')cv.onRuntimeInitialized=()=>{cvReady=true;$('camStatus').textContent='视觉引擎已就绪 · 自动寻找卡片';};setTimeout(wait,250);}};wait();});
+
 const STORE='rax_pokemon_scanner_v1';
 function load(){try{return JSON.parse(localStorage.getItem(STORE)||'{"holdings":[]}')}catch{return {holdings:[]}}}
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
