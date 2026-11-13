@@ -13,6 +13,9 @@
     const total=String((card&&card.total_set_number)??"").match(/\d+/);
     return n&&total?{number:String(parseInt(n[0],10)),total:String(parseInt(total[0],10))}:null;
   }
+  function normalizeName(value){
+    return String(value??"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  }
   function sameNum(a,b){
     const left=String(a??"").match(/\d+/),right=String(b??"").match(/\d+/);
     return !!left&&!!right&&parseInt(left[0],10)===parseInt(right[0],10);
@@ -20,9 +23,9 @@
   function scoreCard(c,q){
     let score=0;
     const n=normNumber(q.number), cn=cardNumberParts(c);
-    const name=String(q.name||"").trim().toLowerCase();
+    const name=normalizeName(q.name);
     if(name){
-      const cardName=String(c.name||"").toLowerCase();
+      const cardName=normalizeName(c.name);
       if(cardName===name)score+=100;
       else if(cardName.includes(name))score+=55;
       else if(name.includes(cardName)&&cardName)score+=25;
@@ -31,8 +34,8 @@
       if(sameNum(cn.number,n.number))score+=45;
       if(sameNum(cn.total,n.total))score+=35;
     }
-    const set=String(q.set||"").trim().toLowerCase();
-    const cardSet=String(c.set&&c.set.name||"").toLowerCase();
+    const set=normalizeName(q.set);
+    const cardSet=normalizeName(c.set&&c.set.name);
     if(set){
       if(cardSet===set)score+=40;
       else if(cardSet.includes(set)||set.includes(cardSet))score+=20;
@@ -46,11 +49,11 @@
       if(!cn||!sameNum(cn.number,n.number)||!sameNum(cn.total,n.total))return false;
     }
     if(q.name){
-      const a=String(c.name||"").toLowerCase(),b=String(q.name).trim().toLowerCase();
+      const a=normalizeName(c.name),b=normalizeName(q.name);
       if(!a.includes(b)&&!b.includes(a))return false;
     }
     if(q.set){
-      const a=String(c.set&&c.set.name||"").toLowerCase(),b=String(q.set).trim().toLowerCase();
+      const a=normalizeName(c.set&&c.set.name),b=normalizeName(q.set);
       if(!a.includes(b))return false;
     }
     return true;
@@ -102,6 +105,6 @@
     }
     throw last||new Error("请求失败。");
   }
-  root.RaxCore={normNumber,cardNumberParts,scoreCard,matches,errorMessage,request};
+  root.RaxCore={normNumber,cardNumberParts,normalizeName,scoreCard,matches,errorMessage,request};
   if(typeof module!=="undefined"&&module.exports)module.exports=root.RaxCore;
 })(typeof globalThis!=="undefined"?globalThis:this);
