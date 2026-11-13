@@ -5,16 +5,18 @@
 <meta name="theme-color" content="#111827">
 <title>RAXTCG — Pokémon Card Scanner & Market Tracker</title>
 <style>
-:root{--bg:#0b1020;--panel:#151d30;--line:#29344b;--txt:#f5f7fb;--muted:#aab5c8;--gold:#f4c95d;--green:#69d6a3;--red:#ff8585}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#111a30,#080c17 65%);color:var(--txt);font:15px system-ui,-apple-system,sans-serif}
-main{max-width:760px;margin:auto;padding:18px 14px 44px}.brand{display:flex;align-items:center;gap:12px;margin:8px 0 18px}.logo{width:46px;height:46px;border-radius:15px;background:linear-gradient(135deg,#f6d36e,#f28a48);display:grid;place-items:center;color:#172033;font-size:25px;font-weight:900}.sub{color:var(--muted);font-size:12px}
-h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;gap:8px;margin:18px 0}.tab,button{border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}.tab{background:#202b42;color:#cbd5e1;flex:1}.tab.active,button.primary{background:var(--gold);color:#1b2231}.panel{background:rgba(21,29,48,.94);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}.muted{color:var(--muted)}.small{font-size:12px;color:var(--muted)}input,select{width:100%;background:#0d1526;border:1px solid #34425e;border-radius:11px;padding:12px;color:white;margin:6px 0 12px;font:inherit}label{font-size:13px;color:#d9e1ef}button{background:#2b3954;color:white;margin:4px 4px 4px 0}button:disabled{opacity:.45}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}.camera{width:100%;max-height:440px;object-fit:contain;background:#05080f;border-radius:14px}.hidden{display:none!important}.cardrow{display:flex;gap:13px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}.cardrow img{width:94px;max-height:132px;object-fit:contain;border-radius:8px}.price{font-size:25px;font-weight:800;color:var(--gold)}.pill{display:inline-block;background:#25334c;padding:4px 8px;border-radius:20px;font-size:11px;color:#dce6f5;margin:2px}.notice{border-left:3px solid var(--gold);padding:9px 11px;background:#222b3d;border-radius:6px;color:#dce3ee;font-size:12px;line-height:1.5}.success{color:var(--green)}.error{color:var(--red)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#0e1728;padding:12px;border-radius:12px}.metric strong{display:block;font-size:19px}.listitem{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}a{color:#9fc4ff}footer{padding:18px 3px;color:var(--muted);font-size:11px;line-height:1.6}
-@media(max-width:520px){main{padding:12px 10px 32px}.panel{padding:13px;border-radius:15px}.brand{gap:9px}h1{font-size:19px}.cardrow{gap:9px}.cardrow img{width:82px;max-height:116px}.row{gap:6px}.row>*{min-width:0}.tab,button{padding:11px 10px;font-size:13px}.grid{grid-template-columns:1fr 1fr}input,select{font-size:16px}}
+:root{color-scheme:dark;--bg:#090b18;--panel:#14172b;--line:#292d49;--txt:#f7f5ff;--muted:#a8abc5;--gold:#ffe36e;--pink:#ff78b8;--cyan:#72e4ef;--green:#77e4b2;--red:#ff8d9d}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 12% 0%,#33245e 0,transparent 38%),radial-gradient(ellipse at 100% 25%,#153d55 0,transparent 32%),linear-gradient(155deg,#0c0d1d,#080a13 68%);color:var(--txt);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;background-image:radial-gradient(#fff 0.7px,transparent .7px);background-size:22px 22px;mask-image:linear-gradient(to bottom,#000,transparent 75%)}
+main{position:relative;max-width:850px;margin:auto;padding:22px 16px 48px}.brand{display:flex;align-items:center;gap:13px;margin:5px 0 20px}.logo{width:52px;height:52px;border-radius:17px;background:linear-gradient(145deg,var(--gold),#ff9e65 55%,var(--pink));display:grid;place-items:center;color:#171329;font-size:28px;font-weight:1000;box-shadow:0 8px 30px #ff9e6540;transform:rotate(-5deg)}.sub{color:var(--muted);font-size:10px;letter-spacing:2.2px;font-weight:800}h1{font-size:24px;letter-spacing:1.5px;margin:0;font-weight:950}h2{font-size:17px;margin:0 0 13px;letter-spacing:.2px}.hero{position:relative;overflow:hidden;padding:22px;border:1px solid #ffffff20;border-radius:25px;background:linear-gradient(115deg,#28204d 0%,#24213e 45%,#123647 100%);box-shadow:0 18px 50px #0005}.hero:before{content:"";position:absolute;width:190px;height:190px;border:22px solid #ffffff12;border-radius:50%;right:-32px;top:-52px;box-shadow:inset 0 -13px #ffffff12}.hero:after{content:"";position:absolute;width:54px;height:54px;border:12px solid #ffffff18;border-radius:50%;right:36px;top:22px;box-shadow:0 0 0 5px #ffffff0b}.hero-copy{position:relative;z-index:1;max-width:72%}.eyebrow{color:var(--cyan);font-size:10px;letter-spacing:2px;font-weight:900}.hero h2{font-size:25px;line-height:1.15;margin:8px 0}.hero p{color:#d1d0e5;font-size:12px;margin:0}.hero-tag{display:inline-flex;margin-top:14px;padding:6px 10px;border-radius:30px;background:#ffffff16;color:#fff2ad;font-size:10px;font-weight:800;letter-spacing:.8px}
+.tabs{display:flex;gap:8px;margin:16px 0}.tab,button{border:1px solid #ffffff12;border-radius:13px;padding:12px 15px;font-weight:800;cursor:pointer;transition:transform .15s,filter .15s}.tab{background:#171a30;color:#b8bad2;flex:1}.tab.active,button.primary{background:linear-gradient(110deg,var(--gold),#ffb66f);color:#171329;border-color:transparent;box-shadow:0 7px 22px #ffca6030}.tab:hover,button:hover{filter:brightness(1.08);transform:translateY(-1px)}.panel{background:linear-gradient(150deg,#171a30f2,#111528f5);border:1px solid #ffffff16;border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 14px 34px #0002}.muted{color:var(--muted)}.small{font-size:12px;color:var(--muted)}input,select{width:100%;background:#0b1020;border:1px solid #353958;border-radius:12px;padding:12px;color:white;margin:6px 0 12px;font:inherit;outline:none}input:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #72e4ef18}label{font-size:13px;color:#e0def1}button{background:#252944;color:white;margin:4px 4px 4px 0}button:disabled{opacity:.4;cursor:not-allowed;transform:none}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}.camera{width:100%;max-height:440px;object-fit:contain;background:#070914;border:1px solid #ffffff1c;border-radius:16px}.hidden{display:none!important}.cardrow{display:flex;gap:13px;align-items:flex-start;padding:14px 0;border-bottom:1px solid #ffffff12}.cardrow img{width:100px;max-height:142px;object-fit:contain;border-radius:9px;filter:drop-shadow(0 8px 12px #0008)}.price{font-size:27px;font-weight:950;color:var(--gold);letter-spacing:-.5px}.pill{display:inline-block;background:#2b3150;padding:4px 9px;border-radius:30px;font-size:10px;color:#dce6ff;margin:2px;border:1px solid #ffffff12}.notice{border:1px solid #f7d77c35;border-left:3px solid var(--gold);padding:10px 12px;background:#332c3b99;border-radius:10px;color:#e6e1ee;font-size:12px;line-height:1.55}.success{color:var(--green)}.error{color:var(--red)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:linear-gradient(135deg,#1c2340,#171a2b);padding:14px;border-radius:14px;border:1px solid #ffffff12}.metric strong{display:block;font-size:21px}.listitem{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #ffffff12}a{color:var(--cyan)}footer{padding:18px 3px;color:var(--muted);font-size:11px;line-height:1.6}
+@media(max-width:520px){main{padding:13px 11px 35px}.panel{padding:14px;border-radius:17px}.brand{gap:10px}h1{font-size:21px}.hero{padding:18px;border-radius:21px}.hero-copy{max-width:82%}.hero h2{font-size:22px}.hero:before{right:-80px}.cardrow{gap:10px}.cardrow img{width:82px;max-height:118px}.row{gap:6px}.row>*{min-width:0}.tab,button{padding:11px 9px;font-size:12px}.grid{grid-template-columns:1fr 1fr}input,select{font-size:16px}}
 </style>
 </head>
 <body><main>
-<header class="brand"><div class="logo">R</div><div><h1>RAXTCG</h1><div class="sub">SCAN · IDENTIFY · MARKET VALUE · COLLECTION</div></div></header>
-<div class="notice">价格定位：市场参考估值，不是保证成交价。英文卡数据优先；日文卡可能没有免费价格覆盖。请核对卡号、版本、语言、品相和价格日期。</div>
+<header class="brand"><div class="logo">R</div><div><h1>RAXTCG</h1><div class="sub">POKÉMON TCG · SCAN & MARKET LAB</div></div></header>
+<div class="hero"><div class="hero-copy"><div class="eyebrow">YOUR COLLECTION. YOUR MARKET EDGE.</div><h2>Scan it.<br>Know its value.</h2><p>卡片识别 · 全球市场报价 · 收藏管理</p><span class="hero-tag">⚡ TRAINER MODE: ON</span></div></div>
+<div class="notice" style="margin-top:12px">报价为市场参考，不保证实际成交。请核对卡图、卡号、系列、语言、版本和品相。</div>
 <div class="tabs"><button class="tab active" data-tab="scan">📷 扫描</button><button class="tab" data-tab="collection">收藏账本</button><button class="tab" data-tab="settings">设置</button></div>
 <section id="scan">
 <div class="panel"><h2>① 扫描卡片</h2>
@@ -66,29 +68,54 @@ async function prepareOcrImage(blob){
  ctx.putImageData(frame,0,0);
  return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('无法处理图片')), 'image/jpeg',.94));
 }
+async function recognizeBlob(blob,label){
+ const {data}=await Tesseract.recognize(blob,'eng',{logger:m=>{if(m.status==='recognizing text')$('ocrStatus').textContent=label+' '+Math.round((m.progress||0)*100)+'%';}});
+ return data.text||'';
+}
+async function makeOcrPasses(blob){
+ const bitmap=await createImageBitmap(blob),w=bitmap.width,h=bitmap.height;
+ const scale=Math.min(2,1800/Math.max(w,h)),W=Math.max(1,Math.round(w*scale)),H=Math.max(1,Math.round(h*scale));
+ const base=document.createElement('canvas');base.width=W;base.height=H;
+ const ctx=base.getContext('2d',{willReadFrequently:true});ctx.drawImage(bitmap,0,0,W,H);bitmap.close();
+ const pixels=ctx.getImageData(0,0,W,H),d=pixels.data;
+ for(let i=0;i<d.length;i+=4){const g=.299*d[i]+.587*d[i+1]+.114*d[i+2],v=Math.max(0,Math.min(255,(g-128)*1.25+128));d[i]=d[i+1]=d[i+2]=v;}
+ ctx.putImageData(pixels,0,0);
+ const crop=(x,y,cw,ch)=>{const c=document.createElement('canvas');c.width=Math.max(1,Math.round(W*cw));c.height=Math.max(1,Math.round(H*ch));c.getContext('2d').drawImage(base,Math.round(W*x),Math.round(H*y),c.width,c.height,0,0,c.width,c.height);return new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(Error('图片裁切失败')),'image/jpeg',.95));};
+ return {full:await new Promise((resolve,reject)=>base.toBlob(b=>b?resolve(b):reject(Error('图片处理失败')),'image/jpeg',.95)),top:await crop(0,0,1,.30),bottom:await crop(0,.78,1,.22)};
+}
+function extractCollectorNumber(text){
+ const normalized=String(text||'').replace(/[|丨]/g,'1').replace(/[oO]/g,'0');
+ const patterns=[/\b(\d{1,3})\s*[\/\\]\s*(\d{1,3})\b/g,/\b(\d{1,3})\s*[-–]\s*(\d{1,3})\b/g];
+ for(const re of patterns){const m=re.exec(normalized);if(m&&Number(m[1])>0&&Number(m[2])>=Number(m[1]))return String(Number(m[1])).padStart(3,'0')+'/'+String(Number(m[2]));}
+ return '';
+}
+function extractNameGuess(text){
+ const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT|ILLUSTRATOR|REGULATION|NO\.?|©|POKEMON|POKÉMON)\b/i;
+ const candidates=String(text||'').split(/\n/).map(x=>x.replace(/[^A-Za-z' -]/g,' ').replace(/\s+/g,' ').trim()).filter(x=>x.length>=3&&x.length<=26&&!excluded.test(x)&&/[A-Za-z]/.test(x));
+ return candidates.sort((a,b)=>b.length-a.length)[0]||'';
+}
 async function runAutoScan(){
  if(!currentPhoto)return;
- $('ocrBtn').disabled=true;
- $('ocrStatus').textContent='正在识别卡片文字…';
+ $('ocrBtn').disabled=true;$('ocrStatus').textContent='正在增强图片并识别卡名、卡号…';
  try{
-  const ocrImage=await prepareOcrImage(currentPhoto);
-  const {data}=await Tesseract.recognize(ocrImage,'eng',{logger:m=>{
-   if(m.status==='recognizing text')$('ocrStatus').textContent='OCR 识别中 '+Math.round((m.progress||0)*100)+'%';
-  }});
-  const t=data.text||'';
-  const lines=t.split(/\n/).map(x=>x.trim()).filter(Boolean);
-  const numLine=lines.find(x=>/\b\d{1,3}\s*\/\s*\d{1,3}\b/.test(x));
-  const numberMatch=numLine && numLine.match(/\d{1,3}\s*\/\s*\d{1,3}/);
-  if(numberMatch)$('cardNumber').value=numberMatch[0].replace(/\s/g,'');
-  const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT)\b/i;
-  const candidates=lines.filter(x=>!/\d{1,3}\s*\/\s*\d{1,3}/.test(x)&&!excluded.test(x)&&x.length>=4&&x.length<=40);
-  const nameGuess=candidates.find(x=>/^[A-Z][A-Za-z' -]+$/.test(x)) || candidates.sort((a,b)=>b.length-a.length)[0];
-  if(nameGuess)$('cardName').value=nameGuess.slice(0,48);
-  $('ocrStatus').textContent='文字已提取，正在自动匹配卡片目录与价格…';
-  await searchCards(true);
- }catch(e){
-  $('ocrStatus').textContent='自动识别未完成：'+e.message+'。你可以修正卡名/卡号后再点搜索。';
- }finally{$('ocrBtn').disabled=false;}
+  const passes=await makeOcrPasses(currentPhoto);
+  const [full,top,bottom]=await Promise.all([recognizeBlob(passes.full,'整张卡片识别中'),recognizeBlob(passes.top,'卡名区域识别中'),recognizeBlob(passes.bottom,'卡号区域识别中')]);
+  const number=extractCollectorNumber(bottom+'\n'+full),name=extractNameGuess(top+'\n'+full);
+  if(number)$('cardNumber').value=number;
+  if(name)$('cardName').value=name;
+  if(number){
+   $('cardName').value='';
+   $('ocrStatus').textContent='已读取卡号 '+number+'。为避免 OCR 把卡名读错，先按卡号搜出候选卡，再由卡图核对。';
+   await searchCards(true);
+  }else if(name){
+   $('ocrStatus').textContent='读到疑似卡名「'+name+'」，但没有可靠卡号。正在按卡名查找候选，请核对卡图。';
+   await searchCards(true);
+  }else{
+   $('ocrStatus').textContent='暂时无法可靠读取卡名或卡号。请重新拍清晰、正面、无反光的照片；也可以直接点搜索并输入卡号。';
+   $('results').innerHTML='<div class="notice">识别没有足够把握，系统没有猜一张卡给你。请让整张卡片保持在画面内，特别是顶部卡名和底部卡号。</div>';
+  }
+ }catch(e){$('ocrStatus').textContent='识别失败：'+e.message+'。请重新拍照或上传清晰照片。';}
+ finally{$('ocrBtn').disabled=false;}
 }
 $('ocrBtn').onclick=runAutoScan;
 async function api(path){
@@ -139,7 +166,7 @@ async function searchCards(auto=false){
   }
   matched.sort((x,y)=>RaxCore.scoreCard(y,q)-RaxCore.scoreCard(x,q));
   if(!matched.length){$('results').innerHTML='<p class="error">没有找到符合卡名和卡号的卡片。请确认卡号格式、语言或卡片名称；Set 留空是允许的。</p>';return;}
-  if(auto){$('ocrStatus').textContent='OCR 已完成。请核对卡图、卡名、卡号和系列，再手动确认，避免误把相似卡当成正确版本。';}
+  if(auto){$('ocrStatus').textContent='已根据识别到的资料找到候选卡。请只核对卡图与卡号；Set 未识别时会显示多个版本供选择。';}
   $('results').innerHTML='<p class="small">'+(auto?'OCR 已识别，请确认正确版本：':'找到')+' '+matched.length+' 个候选。选择对应卡片查看价格：</p>'+
    matched.slice(0,30).map(c=>'<div class="cardrow"><img src="'+esc(c.image_url||'')+'" loading="lazy" alt="'+esc(c.name||'Pokémon card')+'"><div style="flex:1;min-width:0"><b>'+esc(c.name)+'</b><div class="small">'+esc(c.set&&c.set.name||'Set 未提供')+' · '+esc(c.number||'')+'/'+esc(c.total_set_number||'?')+'</div><div class="small">'+esc(c.rarity||'')+' · '+esc(c.artist||'')+'</div><button class="primary" data-card-id="'+Number(c.id)+'">确认此卡并查看价格</button></div></div>').join('');
   $('results').querySelectorAll('[data-card-id]').forEach(btn=>btn.onclick=()=>getPrice(Number(btn.dataset.cardId)));
