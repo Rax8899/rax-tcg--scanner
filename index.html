@@ -149,7 +149,7 @@ async function runAutoScan(){
     if(area>frameArea*.035&&area<frameArea*.92&&peri>0){
      cv.approxPolyDP(contour,approx,.018*peri,true);
      if(approx.rows===4&&cv.isContourConvex(approx)){
-      const rect=cv.boundingRect(approx),ratio=rect.width/Math.max(1,rect.height);
+      const rect=cv.boundingRect(approx),ratio=Math.min(rect.width,rect.height)/Math.max(1,Math.max(rect.width,rect.height));
       if(ratio>.52&&ratio<.93){
        const score=area*(1-Math.abs(ratio-(2.5/3.5))*.5);
        if(score>bestScore){bestScore=score;if(best)best.delete();best=approx.clone();}
@@ -176,10 +176,10 @@ async function runAutoScan(){
   }
   if(!detected)throw new Error('没有检测到完整卡片四条边。请让卡片四个角都进入相机画面；卡片可放在画面任何位置。不会用局部画面猜卡名或价格。');
   $('ocrStatus').textContent='已在整幅画面中自动定位卡片并矫正角度，正在本机读取卡名和编号…';
-  const cropText=async(x0,x1,top,bottom,label,whitelist='')=>{
-   const sx=Math.round(cardCanvas.width*x0),sy=Math.round(cardCanvas.height*top),sw=Math.max(1,Math.round(cardCanvas.width*(x1-x0))),sh=Math.max(1,Math.round(cardCanvas.height*(bottom-top)));
+  const cropText=async(x0,x1,top,bottom,label,whitelist='',targetCanvas=cardCanvas)=>{
+   const sx=Math.round(targetCanvas.width*x0),sy=Math.round(targetCanvas.height*top),sw=Math.max(1,Math.round(targetCanvas.width*(x1-x0))),sh=Math.max(1,Math.round(targetCanvas.height*(bottom-top)));
    const c=document.createElement('canvas');c.width=sw*2;c.height=sh*2;
-   const ctx=c.getContext('2d');ctx.drawImage(cardCanvas,sx,sy,sw,sh,0,0,c.width,c.height);
+   const ctx=c.getContext('2d');ctx.drawImage(targetCanvas,sx,sy,sw,sh,0,0,c.width,c.height);
    const pixels=ctx.getImageData(0,0,c.width,c.height),d=pixels.data;
    for(let i=0;i<d.length;i+=4){const gray=d[i]*.299+d[i+1]*.587+d[i+2]*.114;const v=Math.max(0,Math.min(255,(gray-128)*1.5+128));d[i]=d[i+1]=d[i+2]=v;}
    ctx.putImageData(pixels,0,0);
@@ -189,14 +189,26 @@ async function runAutoScan(){
    const {data}=await Tesseract.recognize(c,'eng',opts);
    return data.text||'';
   };
-  const nameText=await cropText(.035,.76,.025,.17,'顶部卡名');
-  const numberText=await cropText(.02,.58,.89,.995,'底部卡号','0123456789/|');
-  const fullText=nameText+'\n'+numberText;
-  const numberMatch=fullText.match(/\b0?\d{1,3}\s*[\/|]\s*\d{1,3}\b/);
   const normalizeName=x=>String(x||'').replace(/[^A-Za-z0-9' -]/g,' ').replace(/\s+/g,' ').trim();
-  const lines=nameText.split(/\n/).map(normalizeName).filter(x=>x.length>=3&&x.length<=32);
-  const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT|EVOLVE|ILLUS?\.?|NO\.?|LENGTH|WEIGHT)\b/i;
-  const candidate=lines.find(x=>/^[A-Z][A-Za-z0-9' -]+$/.test(x)&&!excluded.test(x))||'';
+  const parseOcr=async(target,rotation)=>{
+   const nameText=await cropText(.035,.76,.025,.17,'顶部卡名'+(rotation?' · '+rotation+'°':''),'',target);
+   const numberText=await cropText(.02,.58,.89,.995,'底部卡号'+(rotation?' · '+rotation+'°':''),'0123456789/|',target);
+   const fullText=nameText+'\n'+numberText,numberMatch=fullText.match(/\b0?\d{1,3}\s*[\/|]\s*\d{1,3}\b/);
+   const lines=nameText.split(/\n/).map(normalizeName).filter(x=>x.length>=3&&x.length<=32);
+   const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT|EVOLVE|ILLUS?\.?|NO\.?|LENGTH|WEIGHT)\b/i;
+   const candidate=lines.find(x=>/^[A-Z][A-Za-z0-9' -]+$/.test(x)&&!excluded.test(x))||'';
+   return {candidate,numberMatch};
+  };
+  let parsed=await parseOcr(cardCanvas,0);
+  if(!parsed.candidate||!parsed.numberMatch){
+   for(const rotation of [90,180,270]){
+    const rotated=document.createElement('canvas');rotated.width=1000;rotated.height=1400;
+    const rctx=rotated.getContext('2d');rctx.translate(500,700);rctx.rotate(rotation*Math.PI/180);rctx.drawImage(cardCanvas,-500,-700,1000,1400);
+    const alternate=await parseOcr(rotated,rotation);
+    if(alternate.candidate&&alternate.numberMatch){parsed=alternate;break;}
+   }
+  }
+  const candidate=parsed.candidate,numberMatch=parsed.numberMatch;
   $('cardName').value=candidate;
   if(numberMatch)$('cardNumber').value=numberMatch[0].replace(/[|]/g,'/').replace(/\s/g,'');
   if(candidate&&numberMatch){$('ocrStatus').textContent='本机免费 OCR 已识别：'+candidate+' · '+$('cardNumber').value+'。正在自动匹配卡片和市场价格…';await searchCards(true);return true;}
