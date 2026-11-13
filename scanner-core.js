@@ -118,7 +118,7 @@
     };
   }
   function holdingKey(x){
-    return [x&&x.id,x&&x.variant||"Normal",x&&x.language||"English",x&&x.condition||"Near Mint"].map(v=>String(v??"").trim().toLowerCase()).join("|");
+    return [x&&x.id,x&&x.variant||"Normal",x&&x.language||"English",x&&x.condition||"Near Mint",x&&x.collection||"My Collection"].map(v=>String(v??"").trim().toLowerCase()).join("|");
   }
   function upsertHolding(rawState,incoming){
     const state=normalizeState(rawState),item={...incoming};
