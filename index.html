@@ -54,12 +54,13 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <script>
 window.__raxCvLoadError=false;
 (function(){
- const urls=['https://docs.opencv.org/4.12.0/opencv.js','https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js','https://unpkg.com/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js'];
+ const urls=['https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js','https://unpkg.com/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js','https://fastly.jsdelivr.net/npm/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js','https://raw.githubusercontent.com/TechStark/opencv-js/v4.12.0-release.1/dist/opencv.js','https://docs.opencv.org/4.12.0/opencv.js'];
  function load(i){
   if(i>=urls.length){window.__raxCvLoadError=true;return;}
   const tag=document.createElement('script');tag.src=urls[i];tag.async=true;
-  tag.onload=()=>{window.__raxCvLoadError=false};
-  tag.onerror=()=>load(i+1);
+  let fallbackTimer=null;
+  tag.onload=()=>{window.__raxCvLoadError=false;if(!window.cv)fallbackTimer=setTimeout(()=>{if(!window.cv){tag.remove();load(i+1)}},5000)};
+  tag.onerror=()=>{if(fallbackTimer)clearTimeout(fallbackTimer);load(i+1)};
   document.head.appendChild(tag);
  }
  load(0);
