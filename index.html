@@ -58,7 +58,7 @@ main{position:relative;max-width:850px;margin:auto;padding:22px 16px 48px}.brand
 <script>
 const $=id=>document.getElementById(id);
 let stream=null, selected=null, currentPhoto=null, scanLoopId=0, lastDetectAt=0, stableCardFrames=0, detectedQuad=null, autoScanBusy=false, cardScanned=false, cvReady=false;
-window.addEventListener('load',()=>{const wait=()=>{if(window.cv&&cv.Mat){cvReady=true;$('camStatus').textContent='视觉识别引擎已准备 · 等待开启相机';}else setTimeout(wait,400);};wait();});
+window.addEventListener('load',()=>{const wait=()=>{if(window.cv&&cv.Mat){cvReady=true;$('camStatus').textContent='视觉引擎已就绪 · 自动寻找卡片';}else{if(window.cv&&!cv.Mat&&typeof cv.onRuntimeInitialized!=='function')cv.onRuntimeInitialized=()=>{cvReady=true;$('camStatus').textContent='视觉引擎已就绪 · 自动寻找卡片';};setTimeout(wait,250);}};wait();});
 const STORE='rax_pokemon_scanner_v1';
 function load(){try{return JSON.parse(localStorage.getItem(STORE)||'{"holdings":[]}')}catch{return {holdings:[]}}}
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
@@ -73,7 +73,6 @@ function showPhoto(blob){currentPhoto=blob;const img=$('preview');if(img.dataset
 function orderQuad(points){
  const cx=points.reduce((s,p)=>s+p.x,0)/points.length,cy=points.reduce((s,p)=>s+p.y,0)/points.length;
  const sorted=points.slice().sort((p,q)=>Math.atan2(p.y-cy,p.x-cx)-Math.atan2(q.y-cy,q.x-cx));
- // Start at the visually upper-left corner while preserving clockwise order.
  let start=0;for(let i=1;i<4;i++)if(sorted[i].x+sorted[i].y<sorted[start].x+sorted[start].y)start=i;
  return [0,1,2,3].map(i=>sorted[(start+i)%4]);
 }
@@ -82,42 +81,35 @@ function detectCard(){
  const v=$('video'),w=720,h=Math.round(720*v.videoHeight/v.videoWidth),src=document.createElement('canvas');src.width=w;src.height=h;
  src.getContext('2d',{willReadFrequently:true}).drawImage(v,0,0,w,h);
  const mat=cv.imread(src),gray=new cv.Mat(),blur=new cv.Mat(),edges=new cv.Mat(),closed=new cv.Mat(),contours=new cv.MatVector(),hierarchy=new cv.Mat();
- let kernel=null,best=null,bestScore=-1,seen=0;
+ let kernel=null,best=null,bestScore=-1,seen=0,valid=0;
  try{
   cv.cvtColor(mat,gray,cv.COLOR_RGBA2GRAY);cv.GaussianBlur(gray,blur,new cv.Size(5,5),0);
-  cv.Canny(blur,edges,28,100);kernel=cv.Mat.ones(5,5,cv.CV_8U);cv.morphologyEx(edges,closed,cv.MORPH_CLOSE,kernel);
-  cv.findContours(closed,contours,hierarchy,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);
-  seen=contours.size();
+  // Multi-contrast edge pass is more tolerant of glossy sleeves and dark playmats.
+  cv.Canny(blur,edges,24,92);kernel=cv.Mat.ones(5,5,cv.CV_8U);cv.morphologyEx(edges,closed,cv.MORPH_CLOSE,kernel);
+  cv.findContours(closed,contours,hierarchy,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);seen=contours.size();
   for(let i=0;i<contours.size();i++){
-   const contour=contours.get(i),area=Math.abs(cv.contourArea(contour)),perimeter=cv.arcLength(contour,true),approx=new cv.Mat();
-   if(area>w*h*.025){
-    cv.approxPolyDP(contour,approx,.025*perimeter,true);
-    let pts=null;
-    if(approx.rows===4){pts=[];for(let j=0;j<4;j++)pts.push({x:approx.intPtr(j,0)[0],y:approx.intPtr(j,0)[1]});}
-    else{
-     const rect=cv.minAreaRect(contour),box=new cv.Mat();cv.boxPoints(rect,box);
-     pts=[];for(let k=0;k<4;k++)pts.push({x:box.floatAt(k,0),y:box.floatAt(k,1)});box.delete();
-    }
-    if(pts){
-     const q=orderQuad(pts),lengths=q.map((p,j)=>Math.hypot(q[(j+1)%4].x-p.x,q[(j+1)%4].y-p.y));
-     const short=(lengths[0]+lengths[2])/2,long=(lengths[1]+lengths[3])/2;
-     const ratio=Math.max(short,long)/Math.max(1,Math.min(short,long));
-     const polygonArea=Math.abs(cv.contourArea(approx.rows===4?approx:contour));
-     const fill=polygonArea/(w*h),cx=q.reduce((s,p)=>s+p.x,0)/4,cy=q.reduce((s,p)=>s+p.y,0)/4;
-     // Pokémon cards keep a near-constant long/short edge ratio even when rotated.
-     if(ratio>1.25&&ratio<1.9&&fill>.025&&fill<.88&&cx>w*.04&&cx<w*.96&&cy>h*.04&&cy<h*.96){
-      const score=fill*100-Math.abs(ratio-1.405)*5;
+   const contour=contours.get(i),area=Math.abs(cv.contourArea(contour)),perimeter=cv.arcLength(contour,true);
+   if(area>w*h*.018&&perimeter>0){
+    const rect=cv.minAreaRect(contour),rw=Math.max(rect.size.width,rect.size.height),rh=Math.max(1,Math.min(rect.size.width,rect.size.height));
+    const ratio=rw/rh,rectArea=rw*rh,rectangularity=area/Math.max(1,rectArea);
+    if(ratio>1.22&&ratio<1.92&&rectArea>w*h*.025&&rectArea<w*h*.82&&rectangularity>.48){
+     const box=new cv.Mat();cv.boxPoints(rect,box);const pts=[];
+     for(let k=0;k<4;k++)pts.push({x:box.floatAt(k,0),y:box.floatAt(k,1)});
+     box.delete();
+     const q=orderQuad(pts),cx=q.reduce((s,p)=>s+p.x,0)/4,cy=q.reduce((s,p)=>s+p.y,0)/4;
+     if(cx>w*.025&&cx<w*.975&&cy>h*.025&&cy<h*.975){
+      valid++;const size=rectArea/(w*h),score=size*100+rectangularity*8-Math.abs(ratio-1.405)*3;
       if(score>bestScore){bestScore=score;best=q.map(p=>({x:p.x/w,y:p.y/h}));}
      }
     }
    }
-   approx.delete();contour.delete();
+   contour.delete();
   }
-  $('camStatus').dataset.contours=String(seen);
+  $('camStatus').dataset.detectStats=seen+' contours / '+valid+' card candidates';
   return best;
  }finally{mat.delete();gray.delete();blur.delete();edges.delete();closed.delete();contours.delete();hierarchy.delete();if(kernel)kernel.delete();}
 }
-function startCardDetection(){cancelAnimationFrame(scanLoopId);stableCardFrames=0;const loop=now=>{if(!stream)return;if(now-lastDetectAt>180){lastDetectAt=now;try{detectedQuad=detectCard();const frame=$('scanFrame');if(detectedQuad){stableCardFrames++;frame.classList.add('detected');$('scanHint').textContent='✓ 已发现卡片 · 请保持稳定';$('camStatus').textContent='正在锁定卡片边缘…';drawDetection();if(stableCardFrames>=3&&!autoScanBusy&&!cardScanned){autoScanBusy=true;cardScanned=true;captureDetectedCard(true);}}else{stableCardFrames=0;cardScanned=false;frame.classList.remove('detected');$('scanHint').textContent='将卡片正面放入框内，保持稳定';$('camStatus').textContent=cvReady?'正在寻找卡片边缘…':'视觉引擎加载中…';clearDetection();}}catch(e){$('camStatus').textContent='边缘检测暂不可用，请手动拍照或上传照片。';}}scanLoopId=requestAnimationFrame(loop);};scanLoopId=requestAnimationFrame(loop);}
+function startCardDetection(){cancelAnimationFrame(scanLoopId);stableCardFrames=0;const loop=now=>{if(!stream)return;if(now-lastDetectAt>180){lastDetectAt=now;try{detectedQuad=detectCard();const frame=$('scanFrame');if(detectedQuad){stableCardFrames++;frame.classList.add('detected');$('scanHint').textContent='✓ 已发现卡片 · 自动锁定中';$('camStatus').textContent='已锁定卡片 · '+($('camStatus').dataset.detectStats||'');drawDetection();if(stableCardFrames>=3&&!autoScanBusy&&!cardScanned){autoScanBusy=true;cardScanned=true;captureDetectedCard(true);}}else{stableCardFrames=0;cardScanned=false;frame.classList.remove('detected');$('scanHint').textContent='将卡片正面放入框内，保持稳定';$('camStatus').textContent=cvReady?'正在寻找卡片… '+($('camStatus').dataset.detectStats||'分析画面中'):'视觉引擎加载中…';clearDetection();}}catch(e){$('camStatus').textContent='边缘检测暂不可用，请手动拍照或上传照片。';}}scanLoopId=requestAnimationFrame(loop);};scanLoopId=requestAnimationFrame(loop);}
 function drawDetection(){
  const v=$('video'),c=$('detectOverlay'),ctx=c.getContext('2d'),dpr=window.devicePixelRatio||1;
  const box=$('scanStage').getBoundingClientRect();c.width=Math.round(box.width*dpr);c.height=Math.round(box.height*dpr);c.style.width=box.width+'px';c.style.height=box.height+'px';
