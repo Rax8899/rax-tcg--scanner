@@ -127,7 +127,7 @@ async function searchCards(auto=false){
   }
   matched.sort((x,y)=>RaxCore.scoreCard(y,q)-RaxCore.scoreCard(x,q));
   if(!matched.length){$('results').innerHTML='<p class="error">没有找到符合卡名和卡号的卡片。请确认卡号格式、语言或卡片名称；Set 留空是允许的。</p>';return;}
-  if(auto&&matched.length===1){$('results').innerHTML='<p class="success">卡片匹配成功，正在读取价格…</p>';await getPrice(matched[0].id);return;}
+  if(auto){$('ocrStatus').textContent='OCR 已完成。请核对卡图、卡名、卡号和系列，再手动确认，避免误把相似卡当成正确版本。';}
   $('results').innerHTML='<p class="small">'+(auto?'OCR 已识别，请确认正确版本：':'找到')+' '+matched.length+' 个候选。选择对应卡片查看价格：</p>'+
    matched.slice(0,30).map(c=>'<div class="cardrow"><img src="'+esc(c.image_url||'')+'" loading="lazy" alt="'+esc(c.name||'Pokémon card')+'"><div style="flex:1;min-width:0"><b>'+esc(c.name)+'</b><div class="small">'+esc(c.set&&c.set.name||'Set 未提供')+' · '+esc(c.number||'')+'/'+esc(c.total_set_number||'?')+'</div><div class="small">'+esc(c.rarity||'')+' · '+esc(c.artist||'')+'</div><button class="primary" data-card-id="'+Number(c.id)+'">确认此卡并查看价格</button></div></div>').join('');
   $('results').querySelectorAll('[data-card-id]').forEach(btn=>btn.onclick=()=>getPrice(Number(btn.dataset.cardId)));
