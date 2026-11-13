@@ -64,3 +64,8 @@ test("does not retry an invalid API key", async () => {
     assert.equal(calls, 1);
   } finally { global.fetch = originalFetch; }
 });
+
+test("matches card names despite punctuation and diacritics", () => {
+  assert.equal(core.matches({ name: "Mr. Mime", number: "122", total_set_number: "165" }, { name: "Mr Mime", number: "122/165", set: "" }), true);
+  assert.equal(core.matches({ name: "Flabébé", number: "083", total_set_number: "165" }, { name: "Flabebe", number: "083/165", set: "" }), true);
+});
