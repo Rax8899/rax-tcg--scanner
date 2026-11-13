@@ -55,27 +55,52 @@ $('stopCam').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stre
 $('capture').onclick=()=>{let v=$('video'),c=$('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(blob=>showPhoto(blob),'image/jpeg',.92)};
 $('file').onchange=e=>{if(e.target.files[0])showPhoto(e.target.files[0])};
 function showPhoto(blob){currentPhoto=blob;$('preview').src=URL.createObjectURL(blob);$('previewWrap').classList.remove('hidden');$('ocrBtn').disabled=false;$('ocrStatus').textContent='照片已准备好。点击「自动识别并查价」。'}
+async function photoDataUrl(blob){
+ const url=URL.createObjectURL(blob);
+ try{
+  const img=new Image();
+  await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('无法读取照片'));img.src=url;});
+  const scale=Math.min(1,1400/Math.max(img.naturalWidth,img.naturalHeight));
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+  canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+  canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+  return canvas.toDataURL('image/jpeg',.82);
+ }finally{URL.revokeObjectURL(url);}
+}
 async function runAutoScan(){
  if(!currentPhoto)return;
  $('ocrBtn').disabled=true;
- $('ocrStatus').textContent='正在识别卡片文字…';
+ $('ocrStatus').textContent='AI 正在读取卡片名称、卡号、系列和版本…';
  try{
-  const {data}=await Tesseract.recognize(currentPhoto,'eng',{logger:m=>{
-   if(m.status==='recognizing text')$('ocrStatus').textContent='OCR 识别中 '+Math.round((m.progress||0)*100)+'%';
-  }});
-  const t=data.text||'';
-  const lines=t.split(/\n/).map(x=>x.trim()).filter(Boolean);
-  const numLine=lines.find(x=>/\b\d{1,3}\s*\/\s*\d{1,3}\b/.test(x));
-  const numberMatch=numLine && numLine.match(/\d{1,3}\s*\/\s*\d{1,3}/);
-  if(numberMatch)$('cardNumber').value=numberMatch[0].replace(/\s/g,'');
-  const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT)\b/i;
-  const candidates=lines.filter(x=>!/\d{1,3}\s*\/\s*\d{1,3}/.test(x)&&!excluded.test(x)&&x.length>=4&&x.length<=40);
-  const nameGuess=candidates.find(x=>/^[A-Z][A-Za-z' -]+$/.test(x)) || candidates.sort((a,b)=>b.length-a.length)[0];
-  if(nameGuess)$('cardName').value=nameGuess.slice(0,48);
-  $('ocrStatus').textContent='文字已提取，正在自动匹配卡片目录与价格…';
+  const image=await photoDataUrl(currentPhoto);
+  const response=await fetch('/api/vision',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({image})});
+  const result=await response.json();
+  if(!response.ok||!result.ok)throw new Error(result.error||('AI 识别失败（HTTP '+response.status+'）'));
+  const card=result.card||{};
+  if(!card.is_pokemon_card)throw new Error('AI 判断这张照片不是清晰可识别的 Pokémon 卡片。请调整角度和光线。');
+  if(card.name)$('cardName').value=card.name;
+  if(card.collector_number)$('cardNumber').value=card.collector_number.replace(/\s/g,'');
+  if(card.set_name)$('setName').value=card.set_name;
+  $('ocrStatus').textContent='AI 已识别：'+(card.name||'卡名未确定')+' · '+(card.collector_number||'卡号未确定')+' · 置信度 '+Math.round((Number(card.confidence)||0)*100)+'%。正在查找市场资料…';
   await searchCards(true);
- }catch(e){
-  $('ocrStatus').textContent='自动识别未完成：'+e.message+'。你可以修正卡名/卡号后再点搜索。';
+ }catch(aiError){
+  $('ocrStatus').textContent='AI 识别未成功，正在尝试本机 OCR：'+aiError.message;
+  try{
+   const {data}=await Tesseract.recognize(currentPhoto,'eng',{logger:m=>{
+    if(m.status==='recognizing text')$('ocrStatus').textContent='本机 OCR 识别中 '+Math.round((m.progress||0)*100)+'%';
+   }});
+   const lines=(data.text||'').split(/\n/).map(x=>x.trim()).filter(Boolean);
+   const numLine=lines.find(x=>/\b\d{1,3}\s*\/\s*\d{1,3}\b/.test(x));
+   const numberMatch=numLine&&numLine.match(/\d{1,3}\s*\/\s*\d{1,3}/);
+   if(numberMatch)$('cardNumber').value=numberMatch[0].replace(/\s/g,'');
+   const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT)\b/i;
+   const candidates=lines.filter(x=>!/\d{1,3}\s*\/\s*\d{1,3}/.test(x)&&!excluded.test(x)&&x.length>=4&&x.length<=40);
+   const guess=candidates.find(x=>/^[A-Z][A-Za-z' -]+$/.test(x))||candidates.sort((a,b)=>b.length-a.length)[0];
+   if(guess)$('cardName').value=guess.slice(0,48);
+   if($('cardName').value||$('cardNumber').value){$('ocrStatus').textContent='本机 OCR 已提取文字，请检查后搜索。';}
+   else throw new Error('没有读到卡名或卡号');
+  }catch(ocrError){$('ocrStatus').textContent='识别失败：'+ocrError.message+'。你可以手动输入卡名和卡号再搜索。';}
  }finally{$('ocrBtn').disabled=false;}
 }
 $('ocrBtn').onclick=runAutoScan;
