@@ -116,30 +116,33 @@ function detectCard(){
   return best;
  }finally{mat.delete();gray.delete();edges.delete();closed.delete();contours.delete();hierarchy.delete();if(kernel)kernel.delete();}
 }
+let liveOcrBusy=false,lastLiveOcrAt=0,lastLiveOcrText='';
+async function scanWholeCameraFrame(){
+ if(!stream||liveOcrBusy||autoScanBusy||!$('video').videoWidth)return;
+ liveOcrBusy=true;
+ try{
+  const v=$('video'),w=960,h=Math.round(w*v.videoHeight/v.videoWidth),canvas=document.createElement('canvas');
+  canvas.width=w;canvas.height=h;canvas.getContext('2d',{willReadFrequently:true}).drawImage(v,0,0,w,h);
+  const blob=await new Promise((resolve,reject)=>canvas.toBlob(x=>x?resolve(x):reject(Error('无法读取相机画面')),'image/jpeg',.9));
+  currentPhoto=blob;
+  $('camStatus').textContent='正在即时识别整个镜头画面…';
+  await runAutoScan();
+ }catch(e){$('camStatus').textContent='即时识别失败：'+e.message;}
+ finally{liveOcrBusy=false;}
+}
 function startCardDetection(){
- cancelAnimationFrame(scanLoopId);stableCardFrames=0;lastDetectAt=0;
+ cancelAnimationFrame(scanLoopId);stableCardFrames=0;lastLiveOcrAt=0;
+ // No fixed target box and no contour-gated capture: periodically OCR the live camera view.
  const loop=now=>{
   if(!stream)return;
-  if(now-lastDetectAt>75){
-   lastDetectAt=now;
-   try{
-    detectedQuad=detectCard();const frame=$('scanFrame');
-    if(detectedQuad){
-     stableCardFrames++;frame.classList.add('detected');$('scanHint').textContent='✓ 卡片已发现 · 正在自动识别';
-     $('camStatus').textContent='卡片已锁定 · '+($('camStatus').dataset.detectStats||'');
-     drawDetection();
-     if(stableCardFrames>=1&&!autoScanBusy&&!cardScanned){autoScanBusy=true;cardScanned=true;captureDetectedCard(true);}
-    }else{
-     stableCardFrames=0;cardScanned=false;frame.classList.remove('detected');$('scanHint').textContent='镜头正在自动寻找卡片 · 任意角度均可';
-     $('camStatus').textContent=cvReady?'快速扫描中 · '+($('camStatus').dataset.detectStats||'分析画面中'):'视觉引擎加载中…';clearDetection();
-    }
-   }catch(e){
-    $('camStatus').textContent='检测引擎错误：'+(e&&e.message?e.message:String(e));
-    $('camStatus').dataset.detectError=String(e&&e.stack||e);
-   }
+  if(now-lastLiveOcrAt>1150&&!liveOcrBusy&&!autoScanBusy){
+   lastLiveOcrAt=now;
+   scanWholeCameraFrame();
   }
   scanLoopId=requestAnimationFrame(loop);
  };
+ $('scanHint').textContent='将镜头对准卡片 · 自动识别整个画面';
+ $('camStatus').textContent='即时扫描已启动 · 正在识别镜头画面';
  scanLoopId=requestAnimationFrame(loop);
 }
 function drawDetection(){
