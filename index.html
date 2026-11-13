@@ -40,7 +40,20 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <footer>RAX Scanner · Independent collector tool, not affiliated with Pokémon, Nintendo, TCGplayer or Cardmarket. Prices are sourced from PkmnPrices API where available; source timestamps are shown per quote. OCR uses Tesseract.js from its public CDN.</footer>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script async src="https://docs.opencv.org/4.12.0/opencv.js" onerror="window.__raxCvLoadError=true;(function(){var urls=['https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js','https://unpkg.com/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js'];function load(i){if(i>=urls.length){window.__raxCvLoadError=true;return;}var tag=document.createElement('script');tag.src=urls[i];tag.async=true;tag.onload=function(){window.__raxCvLoadError=false};tag.onerror=function(){load(i+1)};document.head.appendChild(tag)}load(0)})()"></script>
+<script>
+window.__raxCvLoadError=false;
+(function(){
+ const urls=['https://docs.opencv.org/4.12.0/opencv.js','https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js','https://unpkg.com/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js'];
+ function load(i){
+  if(i>=urls.length){window.__raxCvLoadError=true;return;}
+  const tag=document.createElement('script');tag.src=urls[i];tag.async=true;
+  tag.onload=()=>{window.__raxCvLoadError=false};
+  tag.onerror=()=>load(i+1);
+  document.head.appendChild(tag);
+ }
+ load(0);
+})();
+</script>
 <script src="./scanner-core.js?v=20261113-rax1"></script>
 <script>
 const $=id=>document.getElementById(id);
