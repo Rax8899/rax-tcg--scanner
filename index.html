@@ -135,14 +135,14 @@ function startCardDetection(){
  // No fixed target box and no contour-gated capture: periodically OCR the live camera view.
  const loop=now=>{
   if(!stream)return;
-  if(now-lastLiveOcrAt>1150&&!liveOcrBusy&&!autoScanBusy){
+  if(now-lastLiveOcrAt>1700&&!liveOcrBusy&&!autoScanBusy){
    lastLiveOcrAt=now;
    scanWholeCameraFrame();
   }
   scanLoopId=requestAnimationFrame(loop);
  };
  $('scanHint').textContent='将镜头对准卡片 · 自动识别整个画面';
- $('camStatus').textContent='即时扫描已启动 · 正在识别镜头画面';
+ $('camStatus').textContent='OpenAI Vision 即时识别已启动 · 自动识别镜头中的卡片';
  scanLoopId=requestAnimationFrame(loop);
 }
 function drawDetection(){
@@ -189,28 +189,28 @@ function extractNameGuess(text){
  // Card title is near the top of the card; prefer the first plausible OCR line, not the longest attack name.
  return lines[0]||'';
 }
+// OpenAI Vision card identification (API key stays server-side).
+async function identifyCardWithVision(blob){
+ const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('无法读取相机照片'));reader.readAsDataURL(blob);});
+ const response=await fetch('/api/vision',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({image:dataUrl}),signal:AbortSignal.timeout(25000)});
+ const payload=await response.json().catch(()=>({}));
+ if(!response.ok)throw Error(payload.error&&payload.error.message||'视觉识别服务暂不可用');
+ return payload.card||{};
+}
 async function runAutoScan(){
- if(!currentPhoto)return;
- $('ocrBtn').disabled=true;$('ocrStatus').textContent=ocrWorkerReady?'快速识别中…':'首次启动文字识别引擎…';
+ if(!currentPhoto||autoScanBusy)return;
+ autoScanBusy=true;$('ocrBtn').disabled=true;$('ocrStatus').textContent='OpenAI Vision 正在识别卡片图像…';
  try{
-  const [worker,image]=await Promise.all([getOcrWorker(),makeFastOcrImage(currentPhoto)]);
-  const {data}=await worker.recognize(image);
-  const text=data.text||'',number=extractCollectorNumber(text),name=extractNameGuess(text);$('ocrStatus').textContent='OCR 读取完成：'+(number?'卡号 '+number:(name?'疑似卡名 '+name:'未读到卡名/卡号'))+'；正在匹配资料…';
-  if(number)$('cardNumber').value=number;
-  if(name)$('cardName').value=name;
-  if(number){
-   $('cardName').value='';
-   $('ocrStatus').textContent='已读取卡号 '+number+'，正在匹配卡片目录与报价…';
-   await searchCards(true);
-  }else if(name){
-   $('ocrStatus').textContent='读到疑似卡名「'+name+'」，正在查找候选…';
-   await searchCards(true);
-  }else{
-   $('ocrStatus').textContent='未能可靠读取卡号。请将卡片靠近镜头、避免反光，再试一次。';
-   $('results').innerHTML='<div class="notice">OCR 没有足够把握，不会猜测卡片身份。请确保卡片四边完整入镜。</div>';
-  }
- }catch(e){$('ocrStatus').textContent='识别失败：'+e.message+'。请重新拍照或上传清晰照片。';}
- finally{$('ocrBtn').disabled=false;autoScanBusy=false;}
+  const card=await identifyCardWithVision(currentPhoto);
+  const name=String(card.name||'').trim(),number=String(card.number||'').trim(),set=String(card.set_name||'').trim();
+  if(!name&&!number)throw Error('暂时无法确认卡片身份，请让卡片更靠近镜头并保持清晰。');
+  $('cardName').value=name;$('cardNumber').value=number;$('setName').value=set;
+  $('ocrStatus').textContent='AI 已识别 '+(name||'卡片')+(number?' · '+number:'')+(set?' · '+set:'')+'，正在查询市场资料…';
+  await searchCards(true);
+ }catch(e){
+  $('ocrStatus').textContent='视觉识别未完成：'+e.message;
+  $('results').innerHTML='<div class="notice">未能可靠确认卡片身份。请把卡片放大一些、减少反光后自动重试。</div>';
+ }finally{$('ocrBtn').disabled=false;autoScanBusy=false;}
 }
 $('ocrBtn').onclick=runAutoScan;
 async function api(path){
