@@ -40,6 +40,7 @@ h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}.tabs{display:flex;
 <footer>RAX Scanner · Independent collector tool, not affiliated with Pokémon, Nintendo, TCGplayer or Cardmarket. Prices are sourced from PkmnPrices API where available; source timestamps are shown per quote. OCR uses Tesseract.js from its public CDN.</footer>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
 <script src="./scanner-core.js?v=20261113-rax1"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -78,17 +79,62 @@ async function runAutoScan(){
   finally{URL.revokeObjectURL(url);}
   const w=img.naturalWidth,h=img.naturalHeight;
   if(!w||!h)throw new Error('照片尺寸无效');
-  // Centered Pokémon-card guide: use a portrait crop instead of fixed
-  // percentages of the entire camera frame.
+  // Detect the actual card quadrilateral locally with OpenCV.js, then
+  // perspective-correct it. Never assume the card is at the image center.
   const targetAspect=2.5/3.5;
-  let cw,ch;
-  if(w/h>targetAspect){ch=h*.88;cw=ch*targetAspect;}
-  else{cw=w*.88;ch=cw/targetAspect;}
-  const x=(w-cw)/2,y=(h-ch)/2;
   const cardCanvas=document.createElement('canvas');
-  cardCanvas.width=1600;cardCanvas.height=Math.round(1600/targetAspect);
+  cardCanvas.width=1000;cardCanvas.height=1400;
   const cardCtx=cardCanvas.getContext('2d');
-  cardCtx.drawImage(img,x,y,cw,ch,0,0,cardCanvas.width,cardCanvas.height);
+  let detected=false;
+  const cvReady=async()=>{
+   if(window.cv&&window.cv.Mat)return window.cv;
+   await new Promise((resolve,reject)=>{
+    const started=Date.now();
+    const timer=setInterval(()=>{
+     if(window.cv&&window.cv.Mat){clearInterval(timer);resolve();}
+     else if(Date.now()-started>18000){clearInterval(timer);reject(new Error('OpenCV 本机卡片定位模块加载超时'));}
+    },150);
+   });
+   return window.cv;
+  };
+  try{
+   const cv=await cvReady();
+   const source=document.createElement('canvas');
+   const scale=Math.min(1,1000/Math.max(w,h));
+   source.width=Math.round(w*scale);source.height=Math.round(h*scale);
+   source.getContext('2d').drawImage(img,0,0,source.width,source.height);
+   const src=cv.imread(source),gray=new cv.Mat(),blur=new cv.Mat(),edges=new cv.Mat(),contours=new cv.MatVector(),hierarchy=new cv.Mat();
+   try{
+    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);cv.GaussianBlur(gray,blur,new cv.Size(5,5),0);cv.Canny(blur,edges,45,140);
+    cv.findContours(edges,contours,hierarchy,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);
+    let best=null,bestArea=0;
+    for(let i=0;i<contours.size();i++){
+     const contour=contours.get(i),peri=cv.arcLength(contour,true),approx=new cv.Mat();
+     cv.approxPolyDP(contour,approx,.025*peri,true);
+     if(approx.rows===4){
+      const area=Math.abs(cv.contourArea(approx)),rect=cv.boundingRect(approx),ratio=rect.width/rect.height;
+      if(area>source.width*source.height*.08&&area>bestArea&&ratio>.58&&ratio<.82){bestArea=area;if(best)best.delete();best=approx.clone();}
+     }
+     approx.delete();contour.delete();
+    }
+    if(best){
+     const pts=[];for(let i=0;i<4;i++)pts.push({x:best.data32S[i*2],y:best.data32S[i*2+1]});
+     const sum=p=>p.x+p.y,diff=p=>p.x-p.y;
+     const tl=pts.reduce((a,b)=>sum(a)<sum(b)?a:b),br=pts.reduce((a,b)=>sum(a)>sum(b)?a:b),tr=pts.reduce((a,b)=>diff(a)>diff(b)?a:b),bl=pts.reduce((a,b)=>diff(a)<diff(b)?a:b);
+     const srcPts=cv.matFromArray(4,1,cv.CV_32FC2,[tl.x,tl.y,tr.x,tr.y,br.x,br.y,bl.x,bl.y]);
+     const dstPts=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,1000,0,1000,1400,0,1400]);
+     const transform=cv.getPerspectiveTransform(srcPts,dstPts),warped=new cv.Mat();
+     cv.warpPerspective(src,warped,transform,new cv.Size(1000,1400),cv.INTER_CUBIC,cv.BORDER_REPLICATE);
+     cv.imshow(cardCanvas,warped);detected=true;
+     srcPts.delete();dstPts.delete();transform.delete();warped.delete();best.delete();
+    }
+   }finally{src.delete();gray.delete();blur.delete();edges.delete();contours.delete();hierarchy.delete();}
+  }catch(detectError){$('ocrStatus').textContent='本机自动定位未成功：'+detectError.message+'。改用中央裁切；请确保整张卡片在画面内。';}
+  if(!detected){
+   const cw=Math.min(w,h*targetAspect),ch=cw/targetAspect;
+   cardCanvas.width=1000;cardCanvas.height=1400;
+   cardCtx.drawImage(img,(w-cw)/2,(h-ch)/2,cw,ch,0,0,1000,1400);
+  }
   const cropText=async(top,bottom,label)=>{
    const sy=Math.round(cardCanvas.height*top),sh=Math.max(1,Math.round(cardCanvas.height*(bottom-top)));
    const c=document.createElement('canvas');c.width=1600;c.height=Math.max(1,sh);
