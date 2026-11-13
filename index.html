@@ -51,7 +51,7 @@ function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
 const WORKER_API='/api/market';
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));['scan','collection','settings'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='collection')renderHoldings()});
-async function attachCamera(){if(!stream)return;const track=stream.getVideoTracks()[0],settings=track&&track.getSettings?track.getSettings():{};const stage=$('cameraStage');$('video').srcObject=stream;$('video').classList.remove('hidden');$('previewWrap').classList.add('hidden');await $('video').play();const vw=$('video').videoWidth||settings.width,vh=$('video').videoHeight||settings.height;if(vw&&vh)stage.style.aspectRatio=vw+'/'+vh;$('capture').disabled=false;$('camStatus').textContent='相机已开启。黄色框与实际视频画面比例已同步；请让卡片四角都出现在画面内。'}
+async function attachCamera(){if(!stream)return;const track=stream.getVideoTracks()[0],settings=track&&track.getSettings?track.getSettings():{};const stage=$('cameraStage');$('video').srcObject=stream;$('video').classList.remove('hidden');$('previewWrap').classList.add('hidden');await $('video').play();const vw=$('video').videoWidth||settings.width,vh=$('video').videoHeight||settings.height;if(vw&&vh)stage.style.aspectRatio=vw+'/'+vh;$('capture').disabled=false;$('camStatus').textContent='相机已开启。系统会扫描整个画面寻找卡片，不要求卡片位于中央；请让四个角都完整入镜。'}
 $('startCam').onclick=async()=>{try{if(!stream)stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});await attachCamera();}catch(e){$('camStatus').textContent='无法开启相机：'+e.message+'。请确认 HTTPS、浏览器权限，或改用上传照片。'}};
 $('stopCam').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('video').classList.add('hidden');$('capture').disabled=true};
 $('capture').onclick=()=>{let v=$('video'),c=$('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(blob=>showPhoto(blob),'image/jpeg',.92)};
@@ -157,12 +157,12 @@ async function runAutoScan(){
   const normalizeName=x=>String(x||'').replace(/[^A-Za-z0-9' -]/g,' ').replace(/\s+/g,' ').trim();
   const lines=nameText.split(/\n/).map(normalizeName).filter(x=>x.length>=3&&x.length<=32);
   const excluded=/^(HP|BASIC|STAGE|TRAINER|ENERGY|WEAKNESS|RESISTANCE|RETREAT|EVOLVE|ILLUS?\.?|NO\.?|LENGTH|WEIGHT)\b/i;
-  const candidate=lines.find(x=>/^[A-Z][A-Za-z' -]+$/.test(x)&&!excluded.test(x))||'';
+  const candidate=lines.find(x=>/^[A-Z][A-Za-z0-9' -]+$/.test(x)&&!excluded.test(x))||'';
   $('cardName').value=candidate;
   if(numberMatch)$('cardNumber').value=numberMatch[0].replace(/[|]/g,'/').replace(/\s/g,'');
   if(candidate&&numberMatch){$('ocrStatus').textContent='本机免费 OCR 已识别：'+candidate+' · '+$('cardNumber').value+'。正在自动匹配卡片和市场价格…';await searchCards(true);return true;}
-  if(candidate||numberMatch){$('ocrStatus').textContent='本机免费 OCR 只读到'+(candidate?'卡名 '+candidate:'卡号 '+$('cardNumber').value)+'。另一项无法确认；请把整张卡片放进黄色框内再试。';return false;}
-  $('ocrStatus').textContent='没有读到可靠卡名和编号。请调整距离，让整张卡片完整进入黄色框，避免只拍到卡片一部分。';return false;
+  if(candidate||numberMatch){$('ocrStatus').textContent='本机免费 OCR 只读到'+(candidate?'卡名 '+candidate:'卡号 '+$('cardNumber').value)+'。另一项无法确认；请让整张卡片四角完整入镜后再试。';return false;}
+  $('ocrStatus').textContent='没有读到可靠卡名和编号。请调整距离，让整张卡片四角都出现在画面中，避免只拍到卡片一部分。';return false;
  }catch(e){$('cardName').value='';$('ocrStatus').textContent='本机免费 OCR 失败：'+e.message+'。请重拍清晰正面照片。';return false;}
  finally{$('ocrBtn').disabled=false;}
 }
