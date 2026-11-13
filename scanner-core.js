@@ -105,6 +105,53 @@
     }
     throw last||new Error("请求失败。");
   }
-  root.RaxCore={normNumber,cardNumberParts,normalizeName,scoreCard,matches,errorMessage,request};
+
+  function emptyState(){return {schemaVersion:2,holdings:[],watchlist:[],scanHistory:[],collections:[]};}
+  function normalizeState(raw){
+    const d=raw&&typeof raw==="object"?raw:{};
+    return {
+      schemaVersion:2,
+      holdings:Array.isArray(d.holdings)?d.holdings.filter(x=>x&&typeof x==="object").map(x=>({...x,qty:Math.max(1,Number(x.qty)||1),cost:Math.max(0,Number(x.cost)||0)})):[],
+      watchlist:Array.isArray(d.watchlist)?d.watchlist.filter(x=>x&&typeof x==="object"):[],
+      scanHistory:Array.isArray(d.scanHistory)?d.scanHistory.filter(x=>x&&typeof x==="object").slice(0,500):[],
+      collections:Array.isArray(d.collections)?d.collections.filter(x=>x&&typeof x==="object"):[]
+    };
+  }
+  function holdingKey(x){
+    return [x&&x.id,x&&x.variant||"Normal",x&&x.language||"English",x&&x.condition||"Near Mint"].map(v=>String(v??"").trim().toLowerCase()).join("|");
+  }
+  function upsertHolding(rawState,incoming){
+    const state=normalizeState(rawState),item={...incoming};
+    item.qty=Math.max(1,Math.floor(Number(item.qty)||1));
+    item.cost=Math.max(0,Number(item.cost)||0);
+    const key=holdingKey(item),index=state.holdings.findIndex(x=>holdingKey(x)===key);
+    if(index<0){state.holdings.push(item);return {state,merged:false,holding:item};}
+    const old=state.holdings[index],oldQty=Math.max(1,Number(old.qty)||1),newQty=item.qty,total=oldQty+newQty;
+    const oldCost=Math.max(0,Number(old.cost)||0),newCost=item.cost;
+    const merged={...old,...item,qty:total,cost:((oldCost*oldQty)+(newCost*newQty))/total};
+    state.holdings[index]=merged;
+    return {state,merged:true,holding:merged};
+  }
+  function portfolioSummary(holdings,fx){
+    const list=Array.isArray(holdings)?holdings:[];
+    let quantity=0,costBasis=0,marketValue=0,pricedCostBasis=0,valuedQuantity=0,unpricedQuantity=0;
+    for(const h of list){
+      const qty=Math.max(1,Number(h&&h.qty)||1),cost=Math.max(0,Number(h&&h.cost)||0);
+      quantity+=qty;costBasis+=cost*qty;
+      let value=Number(h&&h.marketMyr);
+      if(!Number.isFinite(value)){
+        const amount=Number(h&&(h.marketAmount??h.usd));
+        const currency=String(h&&h.currency||"USD").toUpperCase();
+        const rate=currency==="MYR"?1:currency==="EUR"?Number(fx&&fx.EUR):Number(fx&&fx.USD);
+        value=Number.isFinite(amount)&&Number.isFinite(rate)&&rate>0?amount*rate:NaN;
+      }
+      if(Number.isFinite(value)&&value>=0){marketValue+=value*qty;pricedCostBasis+=cost*qty;valuedQuantity+=qty;}
+      else unpricedQuantity+=qty;
+    }
+    const pnl=marketValue-pricedCostBasis;
+    return {quantity,costBasis,marketValue,pricedCostBasis,pnl,roi:pricedCostBasis?pnl/pricedCostBasis*100:0,valuedQuantity,unpricedQuantity};
+  }
+
+  root.RaxCore={normNumber,cardNumberParts,normalizeName,scoreCard,matches,errorMessage,request,emptyState,normalizeState,holdingKey,upsertHolding,portfolioSummary};
   if(typeof module!=="undefined"&&module.exports)module.exports=root.RaxCore;
 })(typeof globalThis!=="undefined"?globalThis:this);
